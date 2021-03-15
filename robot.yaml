@@ -1,0 +1,40 @@
+---
+robot_generator:
+  version: "0.1"
+  robot:
+    - id: 1
+      specs :
+        arm_count: 2
+        length_shoulder_to_elbow : 1
+        length_elbow_to_gripper :  1
+      placement:
+        coordinate:
+          x : 0
+          y : 0
+      motion:
+        control:
+          sample_rate : 0.01
+          proportional_gain : 10
+        pattern: "seq-1"
+      pub_sub_name: "robot_1"
+  sequence:
+    - name: "seq-1"
+      pattern:
+        - x: 0
+          y: 0
+        - x: 0.5
+          y: 0.5
+        - x: 1
+          y: 1
+  amq:
+    broker:
+      address: "localhost"
+      port: 5672
+    credentials:
+      username: "admin"
+      password: "rabbit"
+    pub_sub:
+      - name: "robot_1"
+        exchange: "vws_publish_exchange"
+        binding_keys:
+          - "telemetry"
