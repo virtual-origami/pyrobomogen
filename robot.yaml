@@ -16,7 +16,9 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: "seq-1"
-      pub_sub_name: "robot_1"
+      pub_sub_mapping:
+      	publisher: "robot_1"
+      	subscriber: ""
   sequence:
     - name: "seq-1"
       pattern:

@@ -138,16 +138,31 @@ if __name__ == "__main__":
 
 
     async def subtest():
-        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="personnel.yaml", pub_sub_name="personnel_1", mode="sub", app_callback=sub_app_callback )
+        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="robot.yaml", pub_sub_name="robot_1", mode="sub", app_callback=sub_app_callback )
         await pub.connect()
 
     async def pubtest():
         event_loop = asyncio.get_event_loop()
-        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="personnel.yaml", pub_sub_name="vws_1", mode="pub" )
-        event_loop.run_until_complete( pub.connect() )
+        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="robot.yaml", pub_sub_name="robot_1", mode="pub" )
+        await pub.connect()
         while True:
-            event_loop.run_until_complete( pub.publish( binding_key="info.1", message_content="test message" ) )
+            await pub.publish( binding_key="telemetry", message_content="test message".encode() )
             await asyncio.sleep( 1 )
+
+
+    if (len(sys.argv) > 1) and (sys.argv[1] == "sub"):
+        # subscriber test
+        event_loop = asyncio.get_event_loop()
+        event_loop.run_until_complete(subtest())
+        event_loop.run_forever()
+    elif (len( sys.argv ) > 1) and (sys.argv[1] == "pub"):
+        # publisher test
+        event_loop = asyncio.get_event_loop()
+        event_loop.run_until_complete( pubtest() )
+    else:
+        print("in valid command line argument, "
+              "\n publisher format: python filename.py pub"
+              "\n subscriber format: python filename.py sub")
 
 
     event_loop = asyncio.get_event_loop()

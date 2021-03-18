@@ -71,7 +71,7 @@ class RobotArm2:
                     self.sequence_count = 0
 
                     self.eventloop = event_loop
-                    self.publisher = AMQ_Pub_Sub( eventloop=self.eventloop, config_file=config_file, pub_sub_name=robot_info["pub_sub_name"], mode="pub" )
+                    self.publisher = AMQ_Pub_Sub( eventloop=self.eventloop, config_file=config_file, pub_sub_name=robot_info["pub_sub_mapping"]["publisher"], mode="pub" )
         except FileNotFoundError as e:
             logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
