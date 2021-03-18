@@ -138,12 +138,12 @@ if __name__ == "__main__":
 
 
     async def subtest():
-        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="robot.yaml", pub_sub_name="robot_1", mode="sub", app_callback=sub_app_callback )
+        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="../robot.yaml", pub_sub_name="robot_1", mode="sub", app_callback=sub_app_callback )
         await pub.connect()
 
     async def pubtest():
         event_loop = asyncio.get_event_loop()
-        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="robot.yaml", pub_sub_name="robot_1", mode="pub" )
+        pub = AMQ_Pub_Sub( eventloop=event_loop, config_file="../robot.yaml", pub_sub_name="robot_1", mode="pub" )
         await pub.connect()
         while True:
             await pub.publish( binding_key="telemetry", message_content="test message".encode() )

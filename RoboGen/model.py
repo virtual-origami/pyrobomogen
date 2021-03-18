@@ -11,18 +11,17 @@ Ref: P. I. Corke, "Robotics, Vision & Control", Springer 2017, ISBN 978-3-319-54
 Author: Karthik 
 	update-1:Dec-06-2020 :Converted the Original function implementation to class based implementation
 """
+
 import json
 import sys
 import traceback
-
-import matplotlib.pyplot as plt
 import numpy as np
 import math
 import logging
 import asyncio
 import os
-import yaml, threading
-from AMQPubSub import AMQ_Pub_Sub
+import yaml
+from .AMQPubSub import AMQ_Pub_Sub
 
 logging.basicConfig( level=logging.WARNING, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s' )
 
@@ -210,13 +209,6 @@ class RobotArm2:
         print( vars( self ) )
 
 
-if __name__ == "__main__":
-    async def test(eventloop):
-        robo = RobotArm2( event_loop=event_loop, config_file="robot.yaml", robot_id=1 )
-        await robo.connect()
-        while True:
-            await robo.update()
 
 
-    event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete( test( event_loop ) )
+
