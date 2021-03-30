@@ -25,7 +25,7 @@ import traceback
 import numpy as np
 import yaml
 
-from AMQPubSub import AMQ_Pub_Sub
+from .AMQPubSub import AMQ_Pub_Sub
 
 logging.basicConfig(
     level=logging.WARNING,
