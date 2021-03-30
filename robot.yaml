@@ -38,6 +38,6 @@ robot_generator:
       password: "rabbit"
     pub_sub:
       - name: "robot_1"
-        exchange: "vws_publish_exchange"
+        exchange: "vws_fublish_exchange"
         binding_keys:
           - "telemetry"
