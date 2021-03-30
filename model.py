@@ -8,8 +8,11 @@ Author: Daniel Ingram (daniel-s-ingram)
 Ref: [P. I. Corke, "Robotics, Vision & Control",
     Springer 2017, ISBN 978-3-319-54413-7 p102](https://link.springer.com/book/10.1007/978-3-642-20144-8)
 
-Author: Karthik
-    update-1:Dec-06-2020 :Converted the Original function implementation to class based implementation
+Authors:
+    Karthik <she@biba.uni-bremen.de>
+        update-1:Dec-06-2020 :Converted the Original function implementation to class based implementation
+    Shantanoo <des@biba.uni-bremen.de, shantanoo.desai@gmail.com>
+        update-2:Mar-03-2021 :Apply Linting on File, remove unused imports and variables
 """
 import asyncio
 import json
@@ -55,8 +58,8 @@ class RobotArm2:
                     self.id = robot_info["id"]
                     self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
                     self.sample_time = robot_info["motion"]["control"]["sample_rate"]
-                    self.length_shoulder_to_elbow = robot_info["specs"]["length_shoulder_to_elbow"]
-                    self.length_elbow_to_gripper = robot_info["specs"]["length_elbow_to_gripper"]
+                    self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
+                    self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
                     self.shoulder = np.array(
                         [
                             robot_info["placement"]["coordinate"]["x"],
