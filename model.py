@@ -11,17 +11,17 @@ Ref: [P. I. Corke, "Robotics, Vision & Control",
 Author: Karthik
     update-1:Dec-06-2020 :Converted the Original function implementation to class based implementation
 """
+import asyncio
 import json
+import logging
+import math
+import os
 import sys
 import traceback
 
-import matplotlib.pyplot as plt
 import numpy as np
-import math
-import logging
-import asyncio
-import os
-import yaml, threading
+import yaml
+
 from AMQPubSub import AMQ_Pub_Sub
 
 logging.basicConfig(
@@ -41,7 +41,6 @@ class RobotArm2:
                     yaml_as_dict = yaml.load(yaml_file, Loader=yaml.FullLoader)
                     robot_conf = yaml_as_dict["robot_generator"]["robot"]
                     sequence_conf = yaml_as_dict["robot_generator"]["sequence"]
-                    amq_conf = yaml_as_dict["robot_generator"]["amq"]
 
                     # The personnel id of instance must be specified in yaml config file.
                     # If not raise Assertion error
