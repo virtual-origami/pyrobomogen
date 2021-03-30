@@ -3,10 +3,11 @@ robot_generator:
   version: "0.1"
   robot:
     - id: 1
-      specs :
-        arm_count: 2
-        length_shoulder_to_elbow : 1
-        length_elbow_to_gripper :  1
+      arm:
+        count: 2
+        length:
+          shoulder_to_elbow : 1
+          elbow_to_gripper :  1
       placement:
         coordinate:
           x : 0
@@ -17,8 +18,8 @@ robot_generator:
           proportional_gain : 10
         pattern: "seq-1"
       pub_sub_mapping:
-      	publisher: "robot_1"
-      	subscriber: ""
+        publisher: "robot_1"
+        subscriber: ""
   sequence:
     - name: "seq-1"
       pattern:
