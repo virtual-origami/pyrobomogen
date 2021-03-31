@@ -23,7 +23,8 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq1 # Motion Pattern of the Robot
-  
+      protocol: "amq"
+
   amq: # AMQP Broker Information
     broker:
       address: "localhost"

@@ -39,13 +39,14 @@ class RobotArm2:
     """This class implements Robot Arm with 2 joint ARM
     """
 
-    def __init__(self, event_loop, robot_info, amq_config):
+    def __init__(self, event_loop, robot_info, protocol_config):
         try:
             if robot_info is None:
                 logger.critical("robot information cannot be None")
                 raise Exception
 
             self.id = robot_info["id"]
+            self.protocol = robot_info["protocol"]
             self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
             self.sample_time = robot_info["motion"]["control"]["sample_rate"]
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
@@ -63,11 +64,14 @@ class RobotArm2:
             self.sequence_count = 0
 
             self.eventloop = event_loop
-            self.publisher = AMQ_Pub_Sub(
-                eventloop=self.eventloop,
-                config_file=amq_config,
-                binding_suffix=".robot." + robot_info['id']
-            )
+            if self.protocol == "amq":
+                self.publisher = AMQ_Pub_Sub(
+                    eventloop=self.eventloop,
+                    config_file=protocol_config,
+                    binding_suffix=".robot." + robot_info['id']
+                )
+            else:
+                raise AssertionError("Provide protocol (amq/mqtt) config")
         except Exception as e:
             logger.critical("unhandled exception", e)
             sys.exit(-1)
