@@ -37,28 +37,17 @@ class RobotArm2:
     """This class implements Robot Arm with 2 joint ARM
     """
 
-    def __init__(self, event_loop, config_file, robot_id):
+    def __init__(self, event_loop, robot_info, sequence_conf, amq_config):
         try:
-            robot_conf = config_file["robot"]
-            sequence_conf = config_file["sequence"]
-            amq_config = config_file["amq"]
-
-            # The personnel id of instance must be specified in yaml config file.
-            # If not raise Assertion error
-            robot_info = None
-            for robot in robot_conf:
-                if robot["id"] == robot_id:
-                    robot_info = robot
-                    break
             assert (robot_info is not None), \
-                f"robot_id: {robot_id} does not exists in configuration file"
+                f"robot information cannot be None"
 
             self.id = robot_info["id"]
             self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
             self.sample_time = robot_info["motion"]["control"]["sample_rate"]
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
-            self.shoulder = np.array(robot_info["initial_position"]["base"])
+            self.shoulder = np.array([robot_info["initial_position"]["base"]["x"],robot_info["initial_position"]["base"]["y"]])
             self.motion_pattern = None
             for seq in sequence_conf:
                 if seq["name"] == robot_info["motion"]["pattern"]:
@@ -287,7 +276,7 @@ class RobotArm2:
         if self.motion_pattern is not None:
             if self.sequence_count >= len(self.motion_pattern):
                 self.sequence_count = 0
-            self.destination_coordinate = self.motion_pattern[self.sequence_count]["position"]
+            self.destination_coordinate = [self.motion_pattern[self.sequence_count]["position"]["x"], self.motion_pattern[self.sequence_count]["position"]["y"]]
             self.sequence_count += 1
 
     def get_joint_coordinates(self):

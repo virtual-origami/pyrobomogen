@@ -32,14 +32,20 @@ def signal_handler(name):
 
 
 async def app(eventloop, config):
-    while True:
-        robo = RobotArm2(event_loop=eventloop, config_file=config, robot_id=1)
+    robos = []
+    global sighup_handler_var
+
+    for robot in config["robot"]:
+        robo = RobotArm2( event_loop=eventloop, robot_info=robot, sequence_conf=config["sequence"], amq_config=config["amq"] )
         await robo.connect()
-        global sighup_handler_var
-        while not sighup_handler_var:
+        robos.append(robo)
+
+    while not sighup_handler_var:
+        for robo in robos:
             await robo.update()
-        del robo
-        sighup_handler_var = False
+
+    del robo
+    sighup_handler_var = False
 
 
 def main():
