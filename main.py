@@ -6,6 +6,8 @@ import os
 import signal
 import sys
 
+import yaml
+
 from RoboGen.model import RobotArm2
 
 logging.basicConfig(
@@ -29,9 +31,9 @@ def signal_handler(name):
     sighup_handler_var = True
 
 
-async def app(eventloop, config_file):
+async def app(eventloop, config):
     while True:
-        robo = RobotArm2(event_loop=eventloop, config_file=config_file, robot_id=1)
+        robo = RobotArm2(event_loop=eventloop, config_file=config, robot_id=1)
         await robo.connect()
         global sighup_handler_var
         while not sighup_handler_var:
@@ -47,9 +49,13 @@ def main():
         logging.error("configuration file not readable. Check path to configuration file")
         sys.exit()
 
+    if os.path.exists( args.config ):
+        with open( args.config, 'r' ) as yaml_file:
+            yaml_as_dict = yaml.load( yaml_file, Loader=yaml.FullLoader )
+
     event_loop = asyncio.get_event_loop()
     event_loop.add_signal_handler(signal.SIGHUP, functools.partial(signal_handler, name='SIGHUP'))
-    event_loop.run_until_complete(app(event_loop, args.config))
+    event_loop.run_until_complete(app(event_loop, yaml_as_dict["robot_generator"]))
 
 
 if __name__ == "__main__":

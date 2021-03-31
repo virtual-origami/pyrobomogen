@@ -11,7 +11,7 @@ import asyncio
 import os
 import sys
 import traceback
-
+import logging
 import yaml
 from aio_pika import connect_robust, Message, DeliveryMode, ExchangeType, IncomingMessage
 from aio_pika import exceptions as aio_pika_exception
@@ -20,49 +20,40 @@ from aio_pika import exceptions as aio_pika_exception
 class AMQ_Pub_Sub:
     def __init__(self, eventloop, config_file, pub_sub_name, mode="pub", app_callback=None):
         try:
-            if os.path.exists(config_file):
-                with open(config_file, 'r') as yaml_file:
-                    yaml_as_dict = yaml.load(yaml_file, Loader=yaml.FullLoader)
-                    entry = yaml_as_dict["robot_generator"]["amq"]
+            self.broker_info = config_file["broker"]
+            self.credential_info = config_file["credentials"]
+            self.binding_keys = list()
+            for pub_sub in config_file["pub_sub"]:
+                if pub_sub_name == pub_sub["name"]:
+                    self.exchange_name = pub_sub["exchange"]
+                    for binding in pub_sub["binding_keys"]:
+                        self.binding_keys.append(binding)
 
-                    self.broker_info = entry["broker"]
-                    self.credential_info = entry["credentials"]
-                    self.binding_keys = list()
-                    for pub_sub in entry["pub_sub"]:
-                        if pub_sub_name == pub_sub["name"]:
-                            self.exchange_name = pub_sub["exchange"]
-                            for binding in pub_sub["binding_keys"]:
-                                self.binding_keys.append(binding)
-
-                    self.eventloop = eventloop
-                    self.connection = None
-                    self.channel = None
-                    self.exchange = None
-                    self.app_callback = app_callback
-                    self.mode = mode
+            self.eventloop = eventloop
+            self.connection = None
+            self.channel = None
+            self.exchange = None
+            self.app_callback = app_callback
+            self.mode = mode
         except FileNotFoundError as e:
-            print(e)
-            print("** Traceback **")
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
         except OSError as e:
-            print(e)
-            print("** Traceback **")
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
         except yaml.YAMLError as e:
-            print(e)
-            print("** Traceback **")
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
-        except Exception:
-            print("unhandled exception")
-            print("** Traceback **")
+        except Exception as e:
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
 
     async def connect(self):
@@ -83,16 +74,14 @@ class AMQ_Pub_Sub:
             self.channel = await self.connection.channel()
             self.exchange = await self.channel.declare_exchange(self.exchange_name, ExchangeType.FANOUT)
         except aio_pika_exception.AMQPException as e:
-            print(e)
-            print("** Traceback **")
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
-        except Exception:
-            print("unhandled exception")
-            print("** Traceback **")
+        except Exception as e:
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
 
     async def _sub_connect(self):
@@ -111,16 +100,14 @@ class AMQ_Pub_Sub:
                 await queue.bind(exchange=self.exchange, routing_key=binding)
             await queue.consume(self._sub_on_message)
         except aio_pika_exception.AMQPException as e:
-            print(e)
-            print("** Traceback **")
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
-        except Exception:
-            print("unhandled exception")
-            print("** Traceback **")
+        except Exception as e:
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
 
     async def _sub_on_message(self, message: IncomingMessage):
@@ -142,18 +129,16 @@ class AMQ_Pub_Sub:
                 )
                 await self.exchange.publish(message, routing_key=binding_key)
             else:
-                print("Binding key does not match. Failed to Publish")
+                logging.critical("Binding key does not match. Failed to Publish")
         except aio_pika_exception.AMQPException as e:
-            print(e)
-            print("** Traceback **")
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
-        except Exception:
-            print("unhandled exception")
-            print("** Traceback **")
+        except Exception as e:
+            logging.critical( e )
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(repr(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
             sys.exit()
 
     async def terminate(self):
@@ -163,7 +148,7 @@ class AMQ_Pub_Sub:
 if __name__ == "__main__":
 
     def sub_app_callback(**kwargs):
-        print(kwargs)
+        logging.debug(kwargs)
 
     async def subtest():
         pub = AMQ_Pub_Sub(
