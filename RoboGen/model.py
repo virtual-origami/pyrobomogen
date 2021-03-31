@@ -66,7 +66,7 @@ class RobotArm2:
             self.publisher = AMQ_Pub_Sub(
                 eventloop=self.eventloop,
                 config_file=amq_config,
-                pub_sub_name="robot" + robot_info['id']
+                binding_suffix=".robot." + robot_info['id']
             )
         except Exception as e:
             logger.critical("unhandled exception", e)

@@ -25,7 +25,7 @@ logger.addHandler(handler)
 
 
 class AMQ_Pub_Sub:
-    def __init__(self, eventloop, config_file, pub_sub_name, app_callback=None):
+    def __init__(self, eventloop, config_file, binding_suffix, app_callback=None):
         try:
             self.broker_info = config_file["broker"]
             self.credential_info = config_file["credentials"]
@@ -39,6 +39,7 @@ class AMQ_Pub_Sub:
             self.channel = None
             self.exchange = None
             self.app_callback = app_callback
+            self.binding_suffix = binding_suffix
         except Exception as e:
             logger.critical(e)
             sys.exit(-1)
@@ -92,7 +93,7 @@ class AMQ_Pub_Sub:
             if self.app_callback is not None:
                 self.app_callback(
                     exchange_name=message.exchange,
-                    binding_name=message.routing_key,
+                    binding_name=message.routing_key+self.binding_suffix,
                     message_body=message.body
                 )
 
@@ -104,7 +105,7 @@ class AMQ_Pub_Sub:
                     delivery_mode=DeliveryMode.NOT_PERSISTENT,
                     priority=priority
                 )
-                await self.exchange.publish(message, routing_key=binding_key)
+                await self.exchange.publish(message, routing_key=binding_key+self.binding_suffix)
             else:
                 logger.critical("Binding key does not match. Failed to Publish")
         except aio_pika_exception.AMQPException as e:
