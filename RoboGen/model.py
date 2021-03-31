@@ -215,8 +215,8 @@ class RobotArm2:
             if self.sequence_count >= len(self.motion_pattern):
                 self.sequence_count = 0
             self.destination_coordinate = [
-                self.motion_pattern[self.sequence_count]["position"]["x"],
-                self.motion_pattern[self.sequence_count]["position"]["y"]
+                self.motion_pattern[self.sequence_count]["x"],
+                self.motion_pattern[self.sequence_count]["y"]
             ]
             self.sequence_count += 1
 
