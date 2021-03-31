@@ -18,46 +18,46 @@ import asyncio
 import json
 import logging
 import math
-import os
 import sys
-import traceback
 
 import numpy as np
-import yaml
 
 from .AMQPubSub import AMQ_Pub_Sub
 
-logging.basicConfig(
-    level=logging.WARNING,
-    format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s'
-)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+handler = logging.FileHandler('/tmp/robogen.log')
+handler.setLevel(logging.ERROR)
+
+formatter = logging.Formatter('%(levelname)-8s-[%(filename)s:%(lineno)d]-%(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class RobotArm2:
     """This class implements Robot Arm with 2 joint ARM
     """
 
-    def __init__(self, event_loop, robot_info, sequence_conf, amq_config):
+    def __init__(self, event_loop, robot_info, amq_config):
         try:
-            assert (robot_info is not None), \
-                f"robot information cannot be None"
+            if robot_info is None:
+                logger.critical("robot information cannot be None")
+                raise Exception
 
             self.id = robot_info["id"]
             self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
             self.sample_time = robot_info["motion"]["control"]["sample_rate"]
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
-            self.shoulder = np.array([robot_info["initial_position"]["base"]["x"],robot_info["initial_position"]["base"]["y"]])
-            self.motion_pattern = None
-            for seq in sequence_conf:
-                if seq["name"] == robot_info["motion"]["pattern"]:
-                    self.motion_pattern = seq["pattern"]
+            self.shoulder = np.array([robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]])
+            self.motion_pattern = robot_info["motion"]["pattern"]
 
             self.theta1 = 0.0
             self.theta2 = 0.0
             self.GOAL_THRESHOLD = 0.01
 
-            self.destination_coordinate = [0,0]
+            self.destination_coordinate = [0, 0]
             self.previous_destination_coordinate = self.destination_coordinate
 
             self.sequence_count = 0
@@ -66,73 +66,11 @@ class RobotArm2:
             self.publisher = AMQ_Pub_Sub(
                 eventloop=self.eventloop,
                 config_file=amq_config,
-                pub_sub_name=robot_info["pub_sub_mapping"]["publisher"],
-                mode="pub"
+                pub_sub_name="robot" + robot_info['id']
             )
-        except FileNotFoundError as e:
-            logging.critical(e)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical(
-                repr(
-                    traceback.format_exception(
-                        exc_type,
-                        exc_value,
-                        exc_traceback)
-                )
-            )
-            sys.exit()
-        except OSError as e:
-            logging.critical(e)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical(
-                repr(
-                    traceback.format_exception(
-                        exc_type,
-                        exc_value,
-                        exc_traceback
-                    )
-                )
-            )
-            sys.exit()
-        except AssertionError as e:
-            logging.critical(e)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical(
-                repr(
-                    traceback.format_exception(
-                        exc_type,
-                        exc_value,
-                        exc_traceback
-                    )
-                )
-            )
-            sys.exit()
-        except yaml.YAMLError as e:
-            logging.critical(e)
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical(
-                repr(
-                    traceback.format_exception(
-                        exc_type,
-                        exc_value,
-                        exc_traceback
-                    )
-                )
-            )
-            sys.exit()
-        except Exception:
-            logging.critical("unhandled exception")
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical(
-                repr(
-                    traceback.format_exception(
-                        exc_type,
-                        exc_value,
-                        exc_traceback
-                    )
-                )
-            )
-            sys.exit()
+        except Exception as e:
+            logger.critical("unhandled exception", e)
+            sys.exit(-1)
 
     async def publish(self, binding_key, msg):
         await self.publisher.publish(
@@ -219,13 +157,13 @@ class RobotArm2:
             await asyncio.sleep(self.sample_time)
 
         except ValueError as e:
-            logging.critical(e)
+            logger.critical(e)
             exit(-1)
         except TypeError as e:
-            logging.critical(e)
+            logger.critical(e)
             exit(-1)
         except RuntimeError as e:
-            logging.critical(e)
+            logger.critical(e)
             self.destination_coordinate = self.previous_destination_coordinate
 
     async def generate_joint_coordinates(self):  # pragma: no cover
@@ -276,7 +214,10 @@ class RobotArm2:
         if self.motion_pattern is not None:
             if self.sequence_count >= len(self.motion_pattern):
                 self.sequence_count = 0
-            self.destination_coordinate = [self.motion_pattern[self.sequence_count]["position"]["x"], self.motion_pattern[self.sequence_count]["position"]["y"]]
+            self.destination_coordinate = [
+                self.motion_pattern[self.sequence_count]["position"]["x"],
+                self.motion_pattern[self.sequence_count]["position"]["y"]
+            ]
             self.sequence_count += 1
 
     def get_joint_coordinates(self):
@@ -303,9 +244,10 @@ class RobotArm2:
         )
 
     def __get_all_states__(self):
-        logging.debug(vars(self))
+        logger.debug(vars(self))
 
 
+# EXAMPLE:
 if __name__ == "__main__":
 
     async def test(eventloop):

@@ -8,59 +8,44 @@ Authors:
     update: Apply linting
 """
 import asyncio
-import os
 import sys
-import traceback
 import logging
-import yaml
 from aio_pika import connect_robust, Message, DeliveryMode, ExchangeType, IncomingMessage
 from aio_pika import exceptions as aio_pika_exception
 
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+handler = logging.FileHandler('/tmp/robogen.log')
+handler.setLevel(logging.ERROR)
+
+formatter = logging.Formatter('%(levelname)-8s-[%(filename)s:%(lineno)d]-%(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 
 class AMQ_Pub_Sub:
-    def __init__(self, eventloop, config_file, pub_sub_name, mode="pub", app_callback=None):
+    def __init__(self, eventloop, config_file, pub_sub_name, app_callback=None):
         try:
             self.broker_info = config_file["broker"]
             self.credential_info = config_file["credentials"]
             self.binding_keys = list()
-            for pub_sub in config_file["pub_sub"]:
-                if pub_sub_name == pub_sub["name"]:
-                    self.exchange_name = pub_sub["exchange"]
-                    for binding in pub_sub["binding_keys"]:
-                        self.binding_keys.append(binding)
+            self.exchange_name = config_file["exchange"]
+            for binding in config_file["binding_keys"]:
+                self.binding_keys.append(binding)
 
             self.eventloop = eventloop
             self.connection = None
             self.channel = None
             self.exchange = None
             self.app_callback = app_callback
-            self.mode = mode
-        except FileNotFoundError as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
-        except OSError as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
-        except yaml.YAMLError as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
         except Exception as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
 
     async def connect(self):
-        if self.mode == "pub":
-            await self._pub_connect()
-        else:
-            await self._sub_connect()
+        # FEATURE FOR LATER: Subscription if necessary
+        await self._pub_connect()
 
     async def _pub_connect(self):
         try:
@@ -74,15 +59,11 @@ class AMQ_Pub_Sub:
             self.channel = await self.connection.channel()
             self.exchange = await self.channel.declare_exchange(self.exchange_name, ExchangeType.FANOUT)
         except aio_pika_exception.AMQPException as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
         except Exception as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
 
     async def _sub_connect(self):
         try:
@@ -100,15 +81,11 @@ class AMQ_Pub_Sub:
                 await queue.bind(exchange=self.exchange, routing_key=binding)
             await queue.consume(self._sub_on_message)
         except aio_pika_exception.AMQPException as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
         except Exception as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
 
     async def _sub_on_message(self, message: IncomingMessage):
         async with message.process():
@@ -129,33 +106,29 @@ class AMQ_Pub_Sub:
                 )
                 await self.exchange.publish(message, routing_key=binding_key)
             else:
-                logging.critical("Binding key does not match. Failed to Publish")
+                logger.critical("Binding key does not match. Failed to Publish")
         except aio_pika_exception.AMQPException as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
         except Exception as e:
-            logging.critical( e )
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            logging.critical( repr( traceback.format_exception( exc_type, exc_value, exc_traceback ) ) )
-            sys.exit()
+            logger.critical(e)
+            sys.exit(-1)
 
     async def terminate(self):
         await self.connection.close()
 
 
+# EXAMPLE
 if __name__ == "__main__":
 
     def sub_app_callback(**kwargs):
-        logging.debug(kwargs)
+        logger.debug(kwargs)
 
     async def subtest():
         pub = AMQ_Pub_Sub(
             eventloop=event_loop,
             config_file="robot.yaml",
             pub_sub_name="robot_1",
-            mode="sub",
             app_callback=sub_app_callback
         )
         await pub.connect()
@@ -165,8 +138,8 @@ if __name__ == "__main__":
         pub = AMQ_Pub_Sub(
             eventloop=event_loop,
             config_file="robot.yaml",
-            pub_sub_name="robot_1",
-            mode="pub")
+            pub_sub_name="robot_1"
+        )
         await pub.connect()
         while True:
             await pub.publish(binding_key="telemetry", message_content="test message".encode())
