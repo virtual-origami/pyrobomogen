@@ -4,7 +4,7 @@ robot_generator:
   version: "0.1" # Configuration Version
 
   sequence: &seq1 # Motion Sequence of Robotic Arm
-    pattern:
+    task_coordinates:
       - { x: 0.0, y: 0.0 }
       - { x: 0.5, y: 0.5 }
       - { x: 1.0, y: 1.0 }

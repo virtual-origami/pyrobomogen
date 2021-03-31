@@ -51,7 +51,7 @@ class RobotArm2:
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
             self.shoulder = np.array([robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]])
-            self.motion_pattern = robot_info["motion"]["pattern"]
+            self.motion_pattern = robot_info["motion"]["pattern"]["task_coordinates"]
 
             self.theta1 = 0.0
             self.theta2 = 0.0
