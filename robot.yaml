@@ -8,10 +8,8 @@ robot_generator:
         length:
           shoulder_to_elbow : 1
           elbow_to_gripper :  1
-      placement:
-        coordinate:
-          x : 0
-          y : 0
+      initial_position:
+        base: {x: 50,y: 650 }
       motion:
         control:
           sample_rate : 0.01
@@ -23,12 +21,9 @@ robot_generator:
   sequence:
     - name: "seq-1"
       pattern:
-        - x: 0
-          y: 0
-        - x: 0.5
-          y: 0.5
-        - x: 1
-          y: 1
+        - position: {x: 0,y: 0}
+        - position: {x: 0.5,y: 0.5}
+        - position: {x: 1, y: 1}
   amq:
     broker:
       address: "localhost"

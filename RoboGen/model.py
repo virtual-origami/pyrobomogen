@@ -37,58 +37,38 @@ class RobotArm2:
     """This class implements Robot Arm with 2 joint ARM
     """
 
-    def __init__(self, event_loop, config_file, robot_id):
+    def __init__(self, event_loop, robot_info, sequence_conf, amq_config):
         try:
-            if os.path.exists(config_file):
-                with open(config_file, 'r') as yaml_file:
-                    yaml_as_dict = yaml.load(yaml_file, Loader=yaml.FullLoader)
-                    robot_conf = yaml_as_dict["robot_generator"]["robot"]
-                    sequence_conf = yaml_as_dict["robot_generator"]["sequence"]
+            assert (robot_info is not None), \
+                f"robot information cannot be None"
 
-                    # The personnel id of instance must be specified in yaml config file.
-                    # If not raise Assertion error
-                    robot_info = None
-                    for robot in robot_conf:
-                        if robot["id"] == robot_id:
-                            robot_info = robot
-                            break
-                    assert (robot_info is not None), \
-                        f"robot_id: {robot_id} does not exists in configuration file"
+            self.id = robot_info["id"]
+            self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
+            self.sample_time = robot_info["motion"]["control"]["sample_rate"]
+            self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
+            self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
+            self.shoulder = np.array([robot_info["initial_position"]["base"]["x"],robot_info["initial_position"]["base"]["y"]])
+            self.motion_pattern = None
+            for seq in sequence_conf:
+                if seq["name"] == robot_info["motion"]["pattern"]:
+                    self.motion_pattern = seq["pattern"]
 
-                    self.id = robot_info["id"]
-                    self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
-                    self.sample_time = robot_info["motion"]["control"]["sample_rate"]
-                    self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
-                    self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
-                    self.shoulder = np.array(
-                        [
-                            robot_info["placement"]["coordinate"]["x"],
-                            robot_info["placement"]["coordinate"]["y"]
-                        ]
-                    )
-                    self.motion_pattern = None
-                    for seq in sequence_conf:
-                        if seq["name"] == robot_info["motion"]["pattern"]:
-                            self.motion_pattern = seq["pattern"]
+            self.theta1 = 0.0
+            self.theta2 = 0.0
+            self.GOAL_THRESHOLD = 0.01
 
-                    self.theta1 = 0.0
-                    self.theta2 = 0.0
-                    self.GOAL_THRESHOLD = 0.01
+            self.destination_coordinate = [0,0]
+            self.previous_destination_coordinate = self.destination_coordinate
 
-                    self.destination_coordinate_x = 0
-                    self.destination_coordinate_y = 0
-                    self.previous_destination_coordinate_x = self.destination_coordinate_x
-                    self.previous_destination_coordinate_y = self.destination_coordinate_y
+            self.sequence_count = 0
 
-                    self.sequence_count = 0
-
-                    self.eventloop = event_loop
-                    self.publisher = AMQ_Pub_Sub(
-                        eventloop=self.eventloop,
-                        config_file=config_file,
-                        pub_sub_name=robot_info["pub_sub_mapping"]["publisher"],
-                        mode="pub"
-                    )
+            self.eventloop = event_loop
+            self.publisher = AMQ_Pub_Sub(
+                eventloop=self.eventloop,
+                config_file=amq_config,
+                pub_sub_name=robot_info["pub_sub_mapping"]["publisher"],
+                mode="pub"
+            )
         except FileNotFoundError as e:
             logging.critical(e)
             exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -172,15 +152,15 @@ class RobotArm2:
         """
         try:
             if math.sqrt(
-                (self.destination_coordinate_x ** 2) +
-                (self.destination_coordinate_y ** 2)
+                (self.destination_coordinate[0] ** 2) +
+                (self.destination_coordinate[1] ** 2)
                 ) > (
                     self.length_shoulder_to_elbow + self.length_elbow_to_gripper
                     ):
                 raise RuntimeError("Coordinates cannot be reached by the Robot")
 
             theta2_inner = (
-                    (self.destination_coordinate_x ** 2) + (self.destination_coordinate_y ** 2) -
+                    (self.destination_coordinate[0] ** 2) + (self.destination_coordinate[1] ** 2) -
                     (self.length_shoulder_to_elbow ** 2) - (self.length_elbow_to_gripper ** 2)
                 ) \
                 / (2 * self.length_shoulder_to_elbow * self.length_elbow_to_gripper)
@@ -191,8 +171,8 @@ class RobotArm2:
             theta2_goal = np.arccos(theta2_inner)
             if theta2_goal < 0:
                 theta1_goal = np.math.atan2(
-                    self.destination_coordinate_y,
-                    self.destination_coordinate_x
+                    self.destination_coordinate[1],
+                    self.destination_coordinate[0]
                     ) + \
                     np.math.atan2(
                     self.length_elbow_to_gripper * np.sin(theta2_goal),
@@ -204,8 +184,8 @@ class RobotArm2:
                     )
             else:
                 theta1_goal = np.math.atan2(
-                    self.destination_coordinate_y,
-                    self.destination_coordinate_x
+                    self.destination_coordinate[1],
+                    self.destination_coordinate[0]
                     ) - \
                     np.math.atan2(
                     self.length_elbow_to_gripper * np.sin(theta2_goal),
@@ -222,19 +202,18 @@ class RobotArm2:
             self.theta1 = self.theta1 + self.proportional_gain * angle_difference(theta1_goal, self.theta1) * self.sample_time
             self.theta2 = self.theta2 + self.proportional_gain * angle_difference(theta2_goal, self.theta2) * self.sample_time
 
-            self.previous_destination_coordinate_x = self.destination_coordinate_x
-            self.previous_destination_coordinate_y = self.destination_coordinate_y
+            self.previous_destination_coordinate = self.destination_coordinate
 
             wrist = await self.generate_joint_coordinates()
 
             # check goal
-            if self.destination_coordinate_x is not None and self.destination_coordinate_y is not None:
+            if self.destination_coordinate[0] is not None and self.destination_coordinate[1] is not None:
                 d2goal = np.hypot(
-                    wrist[0] - self.destination_coordinate_x,
-                    wrist[1] - self.destination_coordinate_y
+                    wrist[0] - self.destination_coordinate[0],
+                    wrist[1] - self.destination_coordinate[1]
                 )
 
-            if abs(d2goal) < self.GOAL_THRESHOLD and self.destination_coordinate_x is not None:
+            if abs(d2goal) < self.GOAL_THRESHOLD and self.destination_coordinate[0] is not None:
                 self.get_motion_sequence()
 
             await asyncio.sleep(self.sample_time)
@@ -247,8 +226,7 @@ class RobotArm2:
             exit(-1)
         except RuntimeError as e:
             logging.critical(e)
-            self.destination_coordinate_x = self.previous_destination_coordinate_x
-            self.destination_coordinate_y = self.previous_destination_coordinate_y
+            self.destination_coordinate = self.previous_destination_coordinate
 
     async def generate_joint_coordinates(self):  # pragma: no cover
         """Ploting arm
@@ -298,8 +276,7 @@ class RobotArm2:
         if self.motion_pattern is not None:
             if self.sequence_count >= len(self.motion_pattern):
                 self.sequence_count = 0
-            self.destination_coordinate_x = self.motion_pattern[self.sequence_count]["x"]
-            self.destination_coordinate_y = self.motion_pattern[self.sequence_count]["y"]
+            self.destination_coordinate = [self.motion_pattern[self.sequence_count]["position"]["x"], self.motion_pattern[self.sequence_count]["position"]["y"]]
             self.sequence_count += 1
 
     def get_joint_coordinates(self):
@@ -326,7 +303,7 @@ class RobotArm2:
         )
 
     def __get_all_states__(self):
-        print(vars(self))
+        logging.debug(vars(self))
 
 
 if __name__ == "__main__":
