@@ -24,12 +24,11 @@ import numpy as np
 
 from .AMQPubSub import AMQ_Pub_Sub
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+# logger for this file
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler('/tmp/robogen.log')
 handler.setLevel(logging.ERROR)
-
 formatter = logging.Formatter('%(levelname)-8s-[%(filename)s:%(lineno)d]-%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -78,6 +77,7 @@ class RobotArm2:
             sys.exit(-1)
 
     async def publish(self, binding_key, msg):
+        logger.debug(msg)
         await self.publisher.publish(
             binding_key=binding_key,
             message_content=msg
@@ -205,15 +205,6 @@ class RobotArm2:
                 "theta1": self.theta1,
                 "theta2": self.theta2
             }
-            # {
-            #     "id": self.id,
-            #     "base": np.array2string(self.base),
-            #     "shoulder": np.array2string(self.shoulder),
-            #     "elbow": np.array2string(elbow),
-            #     "wrist": np.array2string(wrist),
-            #     "theta1": self.theta1,
-            #     "theta2": self.theta2
-            # }
         )
 
         await self.publish(

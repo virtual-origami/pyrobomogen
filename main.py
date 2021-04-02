@@ -5,23 +5,23 @@ import logging
 import os
 import signal
 import sys
-
 import yaml
-
 from RoboGen.model import RobotArm2
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.WARNING, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
+# logger for this file
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler('/tmp/robogen.log')
 handler.setLevel(logging.ERROR)
-
-asyncio_logger = logging.getLogger('asyncio')
-asyncio_logger.setLevel(logging.WARNING)
-
 formatter = logging.Formatter('%(levelname)-8s-[%(filename)s:%(lineno)d]-%(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+# TURN OFF asyncio logger
+asyncio_logger = logging.getLogger('asyncio')
+asyncio_logger.setLevel(logging.WARNING)
 
 is_sighup_received = False
 
