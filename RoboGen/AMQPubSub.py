@@ -16,6 +16,9 @@ from aio_pika import exceptions as aio_pika_exception
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+pika_logger = logging.getLogger('aio_pika')
+pika_logger.setLevel(logging.WARNING)
+
 handler = logging.FileHandler('/tmp/robogen.log')
 handler.setLevel(logging.ERROR)
 

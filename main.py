@@ -16,6 +16,9 @@ logger = logging.getLogger( __name__ )
 handler = logging.FileHandler( '/tmp/robogen.log' )
 handler.setLevel( logging.ERROR )
 
+asyncio_logger = logging.getLogger('asyncio')
+asyncio_logger.setLevel(logging.WARNING)
+
 formatter = logging.Formatter( '%(levelname)-8s-[%(filename)s:%(lineno)d]-%(message)s' )
 handler.setFormatter( formatter )
 logger.addHandler( handler )
