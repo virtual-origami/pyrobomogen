@@ -2,20 +2,33 @@
 # Robotic Arm Motion Generator Configuration
 robot_generator:
   version: "0.1" # Configuration Version
-
   sequence: &seq1 # Motion Sequence of Robotic Arm
     task_coordinates:
-      - { x: 0.0, y: 0.0 }
-      - { x: 0.5, y: 0.5 }
-      - { x: 1.0, y: 1.0 }
-
+      - { x: 0, y: 0 }
+      - { x: 2, y: 5 }
+      - { x: 7, y: 9 }
+  amq: # AMQP Broker Information
+    broker: &amq_connect_info
+      address: "localhost"
+      port: 5672
+    credentials: &amq_credential
+      username: "admin"
+      password: "rabbit"
+  pub_sub:
+    - pub_sub_1: &pub_sub_1
+        type: "amq"
+        broker: *amq_connect_info
+        credential: *amq_credential
+        exchange: "vws_fublish_exchange"
+        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
+          - "telemetry"
   robots: # List of Robots to be simulated with unique ID
     - id: "1"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
         length:
-          shoulder_to_elbow : 1.0 # Length in Meters
-          elbow_to_gripper :  1.0 # Length in Meters
+          shoulder_to_elbow : 10.0 # Length in Meters
+          elbow_to_gripper :  10.0 # Length in Meters
       initial_position: # Placement of the Robot's Base
         base: { x: 50.0, y: 650.0 }
       motion:
@@ -23,15 +36,6 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq1 # Motion Pattern of the Robot
-      protocol: "amq"
+      protocol: *pub_sub_1
 
-  amq: # AMQP Broker Information
-    broker:
-      address: "localhost"
-      port: 5672
-    credentials:
-      username: "admin"
-      password: "rabbit"
-    exchange: "vws_fublish_exchange"
-    binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
-      - "telemetry"
+

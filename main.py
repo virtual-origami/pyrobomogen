@@ -20,7 +20,7 @@ formatter = logging.Formatter( '%(levelname)-8s-[%(filename)s:%(lineno)d]-%(mess
 handler.setFormatter( formatter )
 logger.addHandler( handler )
 
-sighup_handler_var = False
+is_sighup_received = False
 
 
 def parse_arguments():
@@ -32,13 +32,14 @@ def parse_arguments():
 
 def signal_handler(name):
     print( f'signal_handler {name}' )
-    global sighup_handler_var
-    sighup_handler_var = True
+    global is_sighup_received
+    is_sighup_received = True
 
 
 async def app(eventloop, config):
-    robos = []
-    global sighup_handler_var
+    """Main application for Robot Generator"""
+    robots_in_ws = []
+    global is_sighup_received
 
     while True:
         # Read configuration
@@ -47,23 +48,28 @@ async def app(eventloop, config):
         except Exception as e:
             logger.error(f'Error while reading configuration: {e}')
             break
-        logger.debug("Robot Generator Version: %s", generator_config['version'])
-        if 'amq' not in generator_config:
+
+        logger.debug("Robot Generator Version: %s",generator_config['version'])
+
+        # check if amq or mqtt key description present in configuration
+        if ("amq" not in generator_config) and ("mqtt" not in generator_config):
             logger.critical("Please provide either 'amq' or 'mqtt' configuration")
             sys.exit(-1)
 
+        # robot instantiation
         for robot in generator_config["robots"]:
+            # check for protocol key
             if "protocol" not in robot:
                 logger.critical("no 'protocol' key found.")
                 sys.exit(-1)
-            if robot['protocol'] == 'amq':
+            # create robot arm
+            if robot['protocol']['type'] == 'amq':
                 robo = RobotArm2(
                     event_loop=eventloop,
-                    robot_info=robot,
-                    protocol_config=generator_config["amq"])
+                    robot_info=robot)
                 await robo.connect()
             # TODO: MQTT CONFIG COMING SOON
-            # elif robot['protocol'] == 'mqtt':
+            # elif robot['protocol']['type'] == 'mqtt':
             #     robo = RobotArm2(
             #         event_loop=eventloop,
             #         robot_info=robot,
@@ -74,16 +80,20 @@ async def app(eventloop, config):
                 logger.critical("Unknown Protocol for Robot mentioned")
                 sys.exit(-1)
 
-            robos.append(robo)
+            # add new instance to robots in workspace list
+            robots_in_ws.append(robo)
 
-        while not sighup_handler_var:
-            for robo in robos:
+        # continously monitor signal handle and update robot motion
+        while not is_sighup_received:
+            for robo in robots_in_ws:
                 await robo.update()
 
         # If SIGHUP Occurs, Delete the instances
-        for each_robot in robos:
+        for each_robot in robots_in_ws:
             del each_robot
-        sighup_handler_var = False
+
+        # reset sighup handler flag
+        is_sighup_received = False
 
 
 def read_config(yaml_config_file):

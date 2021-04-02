@@ -28,7 +28,7 @@ class AMQ_Pub_Sub:
     def __init__(self, eventloop, config_file, binding_suffix, app_callback=None):
         try:
             self.broker_info = config_file["broker"]
-            self.credential_info = config_file["credentials"]
+            self.credential_info = config_file["credential"]
             self.binding_keys = list()
             self.exchange_name = config_file["exchange"]
             for binding in config_file["binding_keys"]:

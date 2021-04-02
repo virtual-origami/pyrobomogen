@@ -39,18 +39,19 @@ class RobotArm2:
     """This class implements Robot Arm with 2 joint ARM
     """
 
-    def __init__(self, event_loop, robot_info, protocol_config):
+    def __init__(self, event_loop, robot_info):
         try:
             if robot_info is None:
                 logger.critical("robot information cannot be None")
                 raise Exception
 
             self.id = robot_info["id"]
-            self.protocol = robot_info["protocol"]
+            self.protocol_type = robot_info['protocol']["type"]
             self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
             self.sample_time = robot_info["motion"]["control"]["sample_rate"]
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
+            self.base = np.array([robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]])
             self.shoulder = np.array([robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]])
             self.motion_pattern = robot_info["motion"]["pattern"]["task_coordinates"]
 
@@ -64,10 +65,10 @@ class RobotArm2:
             self.sequence_count = 0
 
             self.eventloop = event_loop
-            if self.protocol == "amq":
+            if self.protocol_type == "amq":
                 self.publisher = AMQ_Pub_Sub(
                     eventloop=self.eventloop,
-                    config_file=protocol_config,
+                    config_file=robot_info['protocol'],
                     binding_suffix=".robot." + robot_info['id']
                 )
             else:
@@ -197,12 +198,22 @@ class RobotArm2:
         result.update(
             {
                 "id": self.id,
-                "shoulder": np.array2string(self.shoulder),
-                "elbow": np.array2string(elbow),
-                "wrist": np.array2string(wrist),
+                "base": self.base.tolist(),
+                "shoulder": self.shoulder.tolist(),
+                "elbow": elbow.tolist(),
+                "wrist": wrist.tolist(),
                 "theta1": self.theta1,
                 "theta2": self.theta2
             }
+            # {
+            #     "id": self.id,
+            #     "base": np.array2string(self.base),
+            #     "shoulder": np.array2string(self.shoulder),
+            #     "elbow": np.array2string(elbow),
+            #     "wrist": np.array2string(wrist),
+            #     "theta1": self.theta1,
+            #     "theta2": self.theta2
+            # }
         )
 
         await self.publish(
