@@ -2,11 +2,26 @@
 # Robotic Arm Motion Generator Configuration
 robot_generator:
   version: "0.1" # Configuration Version
-  sequence: &seq1 # Motion Sequence of Robotic Arm
+  sequence1: &seq1 # Motion Sequence of Robotic Arm
     task_coordinates:
-      - { x: 0, y: 0 }
-      - { x: 2, y: 5 }
-      - { x: 7, y: 9 }
+      - { x: 3, y: 5 }
+      - { x: 5, y: 7 }
+      - { x: 7, y: 2 }
+  sequence2: &seq2 # Motion Sequence of Robotic Arm
+    task_coordinates:
+      - { x: 2, y: 3 }
+      - { x: 7, y: 5 }
+      - { x: 5, y: 7 }
+  sequence3: &seq3 # Motion Sequence of Robotic Arm
+    task_coordinates:
+      - { x: 7, y: 7 }
+      - { x: 6, y: 5 }
+      - { x: 4, y: 9 }
+  sequence4: &seq4 # Motion Sequence of Robotic Arm
+    task_coordinates:
+      - { x: 2, y: 3 }
+      - { x: 3, y: 4 }
+      - { x: 5, y: 4 }
   amq: # AMQP Broker Information
     broker: &amq_connect_info
       address: "localhost"
@@ -30,12 +45,53 @@ robot_generator:
           shoulder_to_elbow : 10.0 # Length in Meters
           elbow_to_gripper :  10.0 # Length in Meters
       initial_position: # Placement of the Robot's Base
-        base: { x: 50.0, y: 650.0 }
+        base: { x: 30.0, y: 30.0 }
       motion:
         control:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq1 # Motion Pattern of the Robot
       protocol: *pub_sub_1
-
+    - id: "2"
+      arm: # Robotic Arm Description
+        count: 2 # Number of Joints (excluding Wrist)
+        length:
+          shoulder_to_elbow : 10.0 # Length in Meters
+          elbow_to_gripper :  10.0 # Length in Meters
+      initial_position: # Placement of the Robot's Base
+        base: { x: 120.0, y: 120.0 }
+      motion:
+        control:
+          sample_rate : 0.01
+          proportional_gain : 10
+        pattern: *seq2 # Motion Pattern of the Robot
+      protocol: *pub_sub_1
+    - id: "3"
+      arm: # Robotic Arm Description
+        count: 2 # Number of Joints (excluding Wrist)
+        length:
+          shoulder_to_elbow : 10.0 # Length in Meters
+          elbow_to_gripper :  10.0 # Length in Meters
+      initial_position: # Placement of the Robot's Base
+        base: { x: 30.0, y: 120.0 }
+      motion:
+        control:
+          sample_rate : 0.01
+          proportional_gain : 10
+        pattern: *seq3 # Motion Pattern of the Robot
+      protocol: *pub_sub_1
+    - id: "4"
+      arm: # Robotic Arm Description
+        count: 2 # Number of Joints (excluding Wrist)
+        length:
+          shoulder_to_elbow : 10.0 # Length in Meters
+          elbow_to_gripper :  10.0 # Length in Meters
+      initial_position: # Placement of the Robot's Base
+        base: { x: 120.0, y: 30.0 }
+      motion:
+        control:
+          sample_rate : 0.01
+          proportional_gain : 10
+        pattern: *seq4 # Motion Pattern of the Robot
+      protocol: *pub_sub_1
 
