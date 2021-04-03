@@ -38,45 +38,46 @@ class RobotArm2:
     """This class implements Robot Arm with 2 joint ARM
     """
 
-    def __init__(self, event_loop, robot_info):
+    def __init__(self,event_loop,robot_info):
         try:
             if robot_info is None:
                 logger.critical("robot information cannot be None")
                 raise Exception
 
             self.id = robot_info["id"]
-            self.protocol_type = robot_info['protocol']["type"]
             self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
             self.sample_time = robot_info["motion"]["control"]["sample_rate"]
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
-            self.base = np.array([robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]])
-            self.shoulder = np.array([robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]])
+            self.base = np.array([robot_info["initial_position"]["base"]["x"],robot_info["initial_position"]["base"]["y"]])
+            self.shoulder = np.array([robot_info["initial_position"]["base"]["x"],robot_info["initial_position"]["base"]["y"]])
             self.motion_pattern = robot_info["motion"]["pattern"]["task_coordinates"]
 
             self.theta1 = 0.0
             self.theta2 = 0.0
             self.GOAL_THRESHOLD = 0.01
 
-            self.destination_coordinate = [0, 0]
+            self.destination_coordinate = [0,0]
             self.previous_destination_coordinate = self.destination_coordinate
 
             self.sequence_count = 0
 
             self.eventloop = event_loop
-            if self.protocol_type == "amq":
+
+            if robot_info['protocol']['publisher']['type'] == "amq":
                 self.publisher = AMQ_Pub_Sub(
                     eventloop=self.eventloop,
-                    config_file=robot_info['protocol'],
-                    binding_suffix=".robot." + robot_info['id']
+                    config_file=robot_info['protocol']['publisher'],
+                    binding_suffix=".robot." + self.id
                 )
             else:
                 raise AssertionError("Provide protocol (amq/mqtt) config")
+
         except Exception as e:
-            logger.critical("unhandled exception", e)
+            logger.critical("unhandled exception",e)
             sys.exit(-1)
 
-    async def publish(self, binding_key, msg):
+    async def publish(self,binding_key,msg):
         logger.debug(msg)
         await self.publisher.publish(
             binding_key=binding_key,
@@ -95,18 +96,18 @@ class RobotArm2:
         """
         try:
             if math.sqrt(
-                (self.destination_coordinate[0] ** 2) +
-                (self.destination_coordinate[1] ** 2)
-                ) > (
+                    (self.destination_coordinate[0] ** 2) +
+                    (self.destination_coordinate[1] ** 2)
+            ) > (
                     self.length_shoulder_to_elbow + self.length_elbow_to_gripper
-                    ):
+            ):
                 raise RuntimeError("Coordinates cannot be reached by the Robot")
 
             theta2_inner = (
-                    (self.destination_coordinate[0] ** 2) + (self.destination_coordinate[1] ** 2) -
-                    (self.length_shoulder_to_elbow ** 2) - (self.length_elbow_to_gripper ** 2)
-                ) \
-                / (2 * self.length_shoulder_to_elbow * self.length_elbow_to_gripper)
+                                   (self.destination_coordinate[0] ** 2) + (self.destination_coordinate[1] ** 2) -
+                                   (self.length_shoulder_to_elbow ** 2) - (self.length_elbow_to_gripper ** 2)
+                           ) \
+                           / (2 * self.length_shoulder_to_elbow * self.length_elbow_to_gripper)
 
             if (theta2_inner > 1) or (theta2_inner < -1):
                 raise RuntimeError("Coordinates cannot be reached by the Robot")
@@ -116,34 +117,34 @@ class RobotArm2:
                 theta1_goal = np.math.atan2(
                     self.destination_coordinate[1],
                     self.destination_coordinate[0]
-                    ) + \
-                    np.math.atan2(
-                    self.length_elbow_to_gripper * np.sin(theta2_goal),
-                        (
-                            self.length_shoulder_to_elbow +
-                            self.length_elbow_to_gripper *
-                            np.cos(theta2_goal)
-                        )
-                    )
+                ) + \
+                              np.math.atan2(
+                                  self.length_elbow_to_gripper * np.sin(theta2_goal),
+                                  (
+                                          self.length_shoulder_to_elbow +
+                                          self.length_elbow_to_gripper *
+                                          np.cos(theta2_goal)
+                                  )
+                              )
             else:
                 theta1_goal = np.math.atan2(
                     self.destination_coordinate[1],
                     self.destination_coordinate[0]
-                    ) - \
-                    np.math.atan2(
-                    self.length_elbow_to_gripper * np.sin(theta2_goal),
-                        (
-                            self.length_shoulder_to_elbow +
-                            self.length_elbow_to_gripper *
-                            np.cos(theta2_goal)
-                        )
-                    )
+                ) - \
+                              np.math.atan2(
+                                  self.length_elbow_to_gripper * np.sin(theta2_goal),
+                                  (
+                                          self.length_shoulder_to_elbow +
+                                          self.length_elbow_to_gripper *
+                                          np.cos(theta2_goal)
+                                  )
+                              )
 
-            def angle_difference(theta1, theta2):
+            def angle_difference(theta1,theta2):
                 return (theta1 - theta2 + np.pi) % (2 * np.pi) - np.pi
 
-            self.theta1 = self.theta1 + self.proportional_gain * angle_difference(theta1_goal, self.theta1) * self.sample_time
-            self.theta2 = self.theta2 + self.proportional_gain * angle_difference(theta2_goal, self.theta2) * self.sample_time
+            self.theta1 = self.theta1 + self.proportional_gain * angle_difference(theta1_goal,self.theta1) * self.sample_time
+            self.theta2 = self.theta2 + self.proportional_gain * angle_difference(theta2_goal,self.theta2) * self.sample_time
 
             self.previous_destination_coordinate = self.destination_coordinate
 
@@ -180,30 +181,30 @@ class RobotArm2:
         result = dict()
 
         elbow = self.shoulder + \
-            np.array(
+                np.array(
                     [
                         self.length_shoulder_to_elbow * np.cos(self.theta1),
                         self.length_shoulder_to_elbow * np.sin(self.theta1)
                     ]
-            )
+                )
 
         wrist = elbow + \
-            np.array(
-                [
-                    self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
-                    self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
-                ]
-            )
+                np.array(
+                    [
+                        self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
+                        self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
+                    ]
+                )
 
         result.update(
             {
-                "id": self.id,
-                "base": self.base.tolist(),
-                "shoulder": self.shoulder.tolist(),
-                "elbow": elbow.tolist(),
-                "wrist": wrist.tolist(),
-                "theta1": self.theta1,
-                "theta2": self.theta2
+                "id":self.id,
+                "base":self.base.tolist(),
+                "shoulder":self.shoulder.tolist(),
+                "elbow":elbow.tolist(),
+                "wrist":wrist.tolist(),
+                "theta1":self.theta1,
+                "theta2":self.theta2
             }
         )
 
@@ -236,17 +237,17 @@ class RobotArm2:
                 )
 
         wrist = elbow + \
-            np.array(
-                [
-                    self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
-                    self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
-                ]
-            )
+                np.array(
+                    [
+                        self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
+                        self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
+                    ]
+                )
 
         return dict(
-            shoulder=(self.shoulder[0], self.shoulder[1]),
-            elbow=(elbow[0], elbow[1]),
-            wrist=(wrist[0], wrist[1])
+            shoulder=(self.shoulder[0],self.shoulder[1]),
+            elbow=(elbow[0],elbow[1]),
+            wrist=(wrist[0],wrist[1])
         )
 
     def __get_all_states__(self):
@@ -261,11 +262,12 @@ if __name__ == "__main__":
             event_loop=event_loop,
             config_file="robot.yaml",
             robot_id=1
-            )
+        )
 
         await robo.connect()
         while True:
             await robo.update()
+
 
     event_loop = asyncio.get_event_loop()
     event_loop.run_until_complete(test(event_loop))

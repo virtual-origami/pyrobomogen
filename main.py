@@ -65,28 +65,14 @@ async def app(eventloop, config):
             if "protocol" not in robot:
                 logger.critical("no 'protocol' key found.")
                 sys.exit(-1)
-            # create robot arm
-            if robot['protocol']['type'] == 'amq':
-                robo = RobotArm2(
-                    event_loop=eventloop,
-                    robot_info=robot)
-                await robo.connect()
-            # TODO: MQTT CONFIG COMING SOON
-            # elif robot['protocol']['type'] == 'mqtt':
-            #     robo = RobotArm2(
-            #         event_loop=eventloop,
-            #         robot_info=robot,
-            #         protocol_config=generator_config["mqtt"])
-            #     await robo.connect()
 
-            else:
-                logger.critical("Unknown Protocol for Robot mentioned")
-                sys.exit(-1)
+            robo = RobotArm2(event_loop=eventloop, robot_info=robot)
+            await robo.connect()
 
             # add new instance to robots in workspace list
             robots_in_ws.append(robo)
 
-        # continously monitor signal handle and update robot motion
+        # continuously monitor signal handle and update robot motion
         while not is_sighup_received:
             for robo in robots_in_ws:
                 await robo.update()

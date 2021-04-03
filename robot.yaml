@@ -51,7 +51,9 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq1 # Motion Pattern of the Robot
-      protocol: *pub_sub_1
+      protocol:
+        publisher: *pub_sub_1
+        subscriber:
     - id: "2"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
@@ -65,7 +67,9 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq2 # Motion Pattern of the Robot
-      protocol: *pub_sub_1
+      protocol:
+        publisher: *pub_sub_1
+        subscriber:
     - id: "3"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
@@ -79,7 +83,9 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq3 # Motion Pattern of the Robot
-      protocol: *pub_sub_1
+      protocol:
+        publisher: *pub_sub_1
+        subscriber:
     - id: "4"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
@@ -93,5 +99,8 @@ robot_generator:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq4 # Motion Pattern of the Robot
-      protocol: *pub_sub_1
+      protocol:
+        publisher: *pub_sub_1
+        subscriber:
+
 
