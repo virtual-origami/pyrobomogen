@@ -36,7 +36,7 @@ robot_generator:
         credential: *amq_credential
         exchange: "vws_fublish_exchange"
         binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
-          - "telemetry"
+          - "telemetry.robot."
   robots: # List of Robots to be simulated with unique ID
     - id: "1"
       arm: # Robotic Arm Description

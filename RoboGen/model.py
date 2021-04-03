@@ -68,7 +68,7 @@ class RobotArm2:
                 self.publisher = AMQ_Pub_Sub(
                     eventloop=self.eventloop,
                     config_file=robot_info['protocol']['publisher'],
-                    binding_suffix=".robot." + self.id
+                    binding_suffix=self.id
                 )
             else:
                 raise AssertionError("Provide protocol (amq/mqtt) config")
@@ -77,12 +77,8 @@ class RobotArm2:
             logger.critical("unhandled exception",e)
             sys.exit(-1)
 
-    async def publish(self,binding_key,msg):
-        logger.debug(msg)
-        await self.publisher.publish(
-            binding_key=binding_key,
-            message_content=msg
-        )
+    async def publish(self,msg):
+        await self.publisher.publish(message_content=msg)
 
     async def connect(self):
         await self.publisher.connect()
@@ -209,7 +205,6 @@ class RobotArm2:
         )
 
         await self.publish(
-            binding_key="telemetry",
             msg=json.dumps(result).encode()
         )
 

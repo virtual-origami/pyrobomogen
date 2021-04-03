@@ -24,28 +24,35 @@ logger.addHandler(handler)
 
 
 class AMQ_Pub_Sub:
-    def __init__(self, eventloop, config_file, binding_suffix, app_callback=None):
+    def __init__(self, eventloop, config_file, binding_suffix, mode='publisher', app_callback=None):
         try:
             self.broker_info = config_file["broker"]
             self.credential_info = config_file["credential"]
             self.binding_keys = list()
             self.exchange_name = config_file["exchange"]
+            self.mode = mode
             for binding in config_file["binding_keys"]:
                 self.binding_keys.append(binding)
 
+            self.binding_suffix = binding_suffix
             self.eventloop = eventloop
             self.connection = None
             self.channel = None
             self.exchange = None
             self.app_callback = app_callback
-            self.binding_suffix = binding_suffix
+
         except Exception as e:
             logger.critical(e)
             sys.exit(-1)
 
     async def connect(self):
-        # FEATURE FOR LATER: Subscription if necessary
-        await self._pub_connect()
+        if self.mode == 'publisher':
+            await self._pub_connect()
+        elif self.mode == 'subscriber':
+            await self._sub_connect()
+        else:
+            logger.critical('AMQ must be "publisher" or "subscriber"')
+            sys.exit(-1)
 
     async def _pub_connect(self):
         try:
@@ -75,38 +82,35 @@ class AMQ_Pub_Sub:
                 loop=self.eventloop)
             self.channel = await self.connection.channel()
             await self.channel.set_qos(prefetch_count=1)
-            self.exchange = await self.channel.declare_exchange(self.exchange_name, ExchangeType.FANOUT)
+            self.exchange = await self.channel.declare_exchange(self.exchange_name,ExchangeType.FANOUT)
             queue = await self.channel.declare_queue(exclusive=True)
             for binding in self.binding_keys:
-                await queue.bind(exchange=self.exchange, routing_key=binding)
+                await queue.bind(exchange=self.exchange,routing_key=binding + self.binding_suffix)
             await queue.consume(self._sub_on_message)
-        except aio_pika_exception.AMQPException as e:
-            logger.critical(e)
-            sys.exit(-1)
         except Exception as e:
             logger.critical(e)
             sys.exit(-1)
 
     async def _sub_on_message(self, message: IncomingMessage):
         async with message.process():
+            logger.debug(f"Msg received: Exchange {message.exchange}, Routing {message.routing_key}")
             if self.app_callback is not None:
                 self.app_callback(
                     exchange_name=message.exchange,
-                    binding_name=message.routing_key+self.binding_suffix,
+                    binding_name=message.routing_key,
                     message_body=message.body
                 )
 
-    async def publish(self, binding_key, message_content, priority=0):
+    async def publish(self,message_content,priority=0):
         try:
-            if binding_key in self.binding_keys:
+            for binding_key in self.binding_keys:
                 message = Message(
                     body=message_content,
                     delivery_mode=DeliveryMode.NOT_PERSISTENT,
                     priority=priority
                 )
-                await self.exchange.publish(message, routing_key=binding_key+self.binding_suffix)
-            else:
-                logger.critical("Binding key does not match. Failed to Publish")
+                logger.debug(f'Msg Publish: Exchange: {self.exchange_name}, Routing:{binding_key + self.binding_suffix}')
+                await self.exchange.publish(message,routing_key=binding_key + self.binding_suffix)
         except aio_pika_exception.AMQPException as e:
             logger.critical(e)
             sys.exit(-1)
@@ -116,49 +120,3 @@ class AMQ_Pub_Sub:
 
     async def terminate(self):
         await self.connection.close()
-
-
-# EXAMPLE
-if __name__ == "__main__":
-
-    def sub_app_callback(**kwargs):
-        logger.debug(kwargs)
-
-    async def subtest():
-        pub = AMQ_Pub_Sub(
-            eventloop=event_loop,
-            config_file="robot.yaml",
-            pub_sub_name="robot_1",
-            app_callback=sub_app_callback
-        )
-        await pub.connect()
-
-    async def pubtest():
-        event_loop = asyncio.get_event_loop()
-        pub = AMQ_Pub_Sub(
-            eventloop=event_loop,
-            config_file="robot.yaml",
-            pub_sub_name="robot_1"
-        )
-        await pub.connect()
-        while True:
-            await pub.publish(binding_key="telemetry", message_content="test message".encode())
-            await asyncio.sleep(1)
-
-    if (len(sys.argv) > 1) and (sys.argv[1] == "sub"):
-        # subscriber test
-        event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(subtest())
-        event_loop.run_forever()
-    elif (len(sys.argv) > 1) and (sys.argv[1] == "pub"):
-        # publisher test
-        event_loop = asyncio.get_event_loop()
-        event_loop.run_until_complete(pubtest())
-    else:
-        print("in valid command line argument, "
-              "\n publisher format: python filename.py pub"
-              "\n subscriber format: python filename.py sub")
-
-    event_loop = asyncio.get_event_loop()
-    event_loop.run_until_complete(subtest())
-    event_loop.run_forever()
