@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def readme():
@@ -8,14 +8,14 @@ def readme():
 
 setup(
     name='pyrobogen',
-    version='0.0.1',
-    description='2D-Robotic Arm Motion Generator',
+    version='0.5.0',
+    description='Two-Joint Robotic Arm Motion Generator',
     url='https://github.com/virtual-origami/pyrobomogen',
     long_description=readme(),
     author='Karthik Shenoy, Shan Desai',
     author_email='she@biba.uni-bremen.de, des@biba.uni-bremen.de',
     license='MIT',
-    packages=['RoboGen'],
+    packages=find_packages(),
     install_requires=[
         'numpy',
         'PyYAML',
