@@ -5,7 +5,7 @@ WORKDIR /pyrobomogen
 
 # Do not run as root
 RUN useradd -m -r pyrobomogen && \
-    chown user /pyrobomogen
+    chown pyrobomogen /pyrobomogen
 
 COPY requirements.txt /pyrobomogen
 RUN pip3 install -r requirements.txt
