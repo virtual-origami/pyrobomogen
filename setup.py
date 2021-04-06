@@ -7,15 +7,15 @@ def readme():
 
 
 setup(
-    name='RoboGen',
-    version='0.1',
-    description='Robot Motion Generator',
+    name='pyrobogen',
+    version='0.0.1',
+    description='2D-Robotic Arm Motion Generator',
+    url='https://github.com/virtual-origami/pyrobomogen',
     long_description=readme(),
-    author='Karthik , Shan Desai',
+    author='Karthik Shenoy, Shan Desai',
     author_email='she@biba.uni-bremen.de, des@biba.uni-bremen.de',
     license='MIT',
     packages=['RoboGen'],
-    scripts=[],
     install_requires=[
         'numpy',
         'PyYAML',
