@@ -8,7 +8,7 @@ def readme():
 
 setup(
     name='pyrobogen',
-    version='0.5.0',
+    version='0.5.1',
     description='Two-Joint Robotic Arm Motion Generator',
     url='https://github.com/virtual-origami/pyrobomogen',
     long_description=readme(),
