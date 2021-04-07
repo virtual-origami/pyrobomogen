@@ -84,7 +84,7 @@ class PubSubAMQP:
         except Exception as e:
             logger.error('_sub_connect: Exception during setup of sub channel, exchange')
             logger.error(e)
-            self.terminate()
+            await self.terminate()
             sys.exit(-1)
 
     async def _sub_on_message(self, message: IncomingMessage):
