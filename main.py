@@ -6,7 +6,7 @@ import os
 import signal
 import sys
 import yaml
-from RoboGen.model import RobotArm2
+from pyrobomogen.robot.model import RobotArm2
 
 logging.basicConfig(level=logging.WARNING, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
@@ -25,23 +25,34 @@ asyncio_logger.setLevel(logging.WARNING)
 
 is_sighup_received = False
 
+# Robots in Workspace
+robots_in_ws = []
+
+
+def _graceful_shutdown():
+    global robots_in_ws
+    for each_robot in robots_in_ws:
+        del each_robot   
+
 
 def parse_arguments():
     """Arguments to run the script"""
-    parser = argparse.ArgumentParser(description='Robot motion generator')
+    parser = argparse.ArgumentParser(description='Robotic Arm Motion Generator')
     parser.add_argument('--config', '-c', required=True, help='YAML Configuration File for RobotMotionGen with path')
     return parser.parse_args()
 
 
-def signal_handler(name):
+def sighup_handler(name):
+    """SIGHUP HANDLER"""
     logger.debug(f'signal_handler {name}')
+    logger.info('Updating the Robotic Configuration')
     global is_sighup_received
     is_sighup_received = True
 
 
 async def app(eventloop, config):
     """Main application for Robot Generator"""
-    robots_in_ws = []
+    global robots_in_ws
     global is_sighup_received
 
     while True:
@@ -49,7 +60,7 @@ async def app(eventloop, config):
         try:
             generator_config = read_config(config)
         except Exception as e:
-            logger.error(f'Error while reading configuration: {e}')
+            logger.error('Error while reading configuration: ', e)
             break
 
         logger.debug("Robot Generator Version: %s", generator_config['version'])
@@ -63,7 +74,7 @@ async def app(eventloop, config):
         for robot in generator_config["robots"]:
             # check for protocol key
             if "protocol" not in robot:
-                logger.critical("no 'protocol' key found.")
+                logger.error("no 'protocol' key found.")
                 sys.exit(-1)
 
             robo = RobotArm2(event_loop=eventloop, robot_info=robot)
@@ -78,8 +89,7 @@ async def app(eventloop, config):
                 await robo.update()
 
         # If SIGHUP Occurs, Delete the instances
-        for each_robot in robots_in_ws:
-            del each_robot
+        _graceful_shutdown()
 
         # reset sighup handler flag
         is_sighup_received = False
@@ -104,8 +114,12 @@ def main():
         sys.exit(-1)
 
     event_loop = asyncio.get_event_loop()
-    event_loop.add_signal_handler(signal.SIGHUP, functools.partial(signal_handler, name='SIGHUP'))
-    event_loop.run_until_complete(app(event_loop, args.config))
+    event_loop.add_signal_handler(signal.SIGHUP, functools.partial(sighup_handler, name='SIGHUP'))
+    try:
+        event_loop.run_until_complete(app(event_loop, args.config))
+    except KeyboardInterrupt:
+        logger.error('CTRL+C Pressed')
+        _graceful_shutdown()
 
 
 if __name__ == "__main__":

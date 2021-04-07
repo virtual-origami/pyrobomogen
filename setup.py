@@ -1,4 +1,6 @@
-from setuptools import setup
+import os
+import re
+from setuptools import setup, find_packages
 
 
 def readme():
@@ -6,22 +8,26 @@ def readme():
         return f.read()
 
 
+with open(os.path.join(os.path.dirname(__file__), 'pyrobomogen', '__init__.py')) as f:
+    version = re.search("__version__ = '([^']+)'", f.read()).group(1)
+
+
+with open('requirements.txt') as reqs_f:
+    reqs = reqs_f.read().strip().split('\n')
+
+
 setup(
     name='pyrobogen',
-    version='0.0.1',
-    description='2D-Robotic Arm Motion Generator',
+    version=version,
+    description='Two-Joint Robotic Arm Motion Generator',
     url='https://github.com/virtual-origami/pyrobomogen',
     long_description=readme(),
-    author='Karthik Shenoy, Shan Desai',
+    long_description_content_type='text/markdown',
+    author='Karthik Shenoy Panambur, Shantanoo Desai',
     author_email='she@biba.uni-bremen.de, des@biba.uni-bremen.de',
-    license='MIT',
-    packages=['RoboGen'],
-    install_requires=[
-        'numpy',
-        'PyYAML',
-        'pamqp',
-        'aio-pika'
-    ],
+    license='MIT License',
+    packages=find_packages(),
+    install_requires=reqs,
     include_data_package=True,
     zip_safe=False
 )
