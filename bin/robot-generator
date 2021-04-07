@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+import pyrobomogen.cli
+
+if __name__ == "__main__":
+    pyrobomogen.cli.main()
