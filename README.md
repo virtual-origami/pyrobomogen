@@ -18,6 +18,17 @@ Python Package / Application to generate 2D Robotic Arm Movements.
 
         pip install -r requirements.txt
 
+4. Install `pyrobomogen` as python package for development:
+
+        pip install -e .
+
+   This makes the `robot-generator` binary available as a CLI
+
+### Usage
+Basic usage:
+
+    $ robot-generator -c config.yaml
+
 ### Message Broker (RabbitMQ)
 
 Use the [rabbitmqtt](https://github.com/virtual-origami/rabbitmqtt) stack for the Message Broker

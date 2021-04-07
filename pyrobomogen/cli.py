@@ -1,3 +1,7 @@
+"""Command-Line Utility Python Script to be installed as binary
+   usage: robot-generator -c /path/to/config.yaml
+"""
+
 import argparse
 import asyncio
 import functools
@@ -32,7 +36,7 @@ robots_in_ws = []
 def _graceful_shutdown():
     global robots_in_ws
     for each_robot in robots_in_ws:
-        del each_robot   
+        del each_robot
 
 
 def parse_arguments():
@@ -60,7 +64,8 @@ async def app(eventloop, config):
         try:
             generator_config = read_config(config)
         except Exception as e:
-            logger.error('Error while reading configuration: ', e)
+            logger.error('Error while reading configuration:')
+            logger.error(e)
             break
 
         logger.debug("Robot Generator Version: %s", generator_config['version'])
@@ -102,8 +107,8 @@ def read_config(yaml_config_file):
             yaml_as_dict = yaml.load(config_file, Loader=yaml.FullLoader)
         return yaml_as_dict['robot_generator']
     else:
-        raise FileNotFoundError
         logger.error('YAML Configuration File not Found.')
+        raise FileNotFoundError
 
 
 def main():

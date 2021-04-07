@@ -27,6 +27,7 @@ setup(
     author_email='she@biba.uni-bremen.de, des@biba.uni-bremen.de',
     license='MIT License',
     packages=find_packages(),
+    scripts=['bin/robot-generator'],
     install_requires=reqs,
     include_data_package=True,
     zip_safe=False

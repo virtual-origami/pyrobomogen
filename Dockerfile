@@ -12,9 +12,14 @@ RUN pip3 install -r requirements.txt
 
 FROM base AS src
 COPY . /pyrobomogen
+# install pyrobomogen here as a python package
+RUN pip3 install .
 
 USER pyrobomogen
 
+COPY scripts/docker-entrypoint.sh /entrypoint.sh
+
+# Use the `robot-generator` binary as Application
 FROM src AS prod
-ENTRYPOINT [ "python3" ]
-CMD ["main.py", "-c", "config.yaml"]
+ENTRYPOINT [ "/entrypoint.sh" ]
+CMD ["robot-generator", "-c", "config.yaml"]
