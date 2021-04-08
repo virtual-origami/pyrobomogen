@@ -34,7 +34,7 @@ jobs:
           echo ::set-output name=tags::${TAGS}
       
       - name: Set up QEMU
-        uses: actions/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v1
         with:
           platforms: all
       
