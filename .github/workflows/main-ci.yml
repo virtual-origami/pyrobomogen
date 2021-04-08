@@ -34,8 +34,9 @@ jobs:
           echo ::set-output name=tags::${TAGS}
       
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v2
         with:
+          image: tonistiigi/binfmt:latest
           platforms: all
       
       - name: Set up Docker Buildx
@@ -51,7 +52,6 @@ jobs:
             ${{ runner.os }}-buildx-
       
       - name: Login to DockerHub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
