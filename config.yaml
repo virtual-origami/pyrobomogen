@@ -33,9 +33,23 @@ robot_generator:
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
-        exchange: "vws_fublish_exchange"
+        exchange: "telemetry_exchange"
         binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
           - "telemetry.robot."
+    - pub_sub_2: &pub_sub_2
+        type: "amq"
+        broker: *amq_connect_info
+        credential: *amq_credential
+        exchange: "control_exchange"
+        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
+          - "control.robot."
+    - pub_sub_3: &pub_sub_3
+        type: "amq"
+        broker: *amq_connect_info
+        credential: *amq_credential
+        exchange: "db_exchange"
+        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
+          - "db.robot."
   robots: # List of Robots to be simulated with unique ID
     - id: "1"
       arm: # Robotic Arm Description
@@ -46,13 +60,17 @@ robot_generator:
       initial_position: # Placement of the Robot's Base
         base: { x: 30.0, y: 30.0 }
       motion:
+        operation_state: "start"
         control:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq1 # Motion Pattern of the Robot
       protocol:
-        publisher: *pub_sub_1
-        subscriber:
+        publishers:
+          - *pub_sub_1
+          - *pub_sub_3
+        subscribers:
+          - *pub_sub_2
     - id: "2"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
@@ -62,13 +80,17 @@ robot_generator:
       initial_position: # Placement of the Robot's Base
         base: { x: 120.0, y: 120.0 }
       motion:
+        operation_state: "stop"
         control:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq2 # Motion Pattern of the Robot
       protocol:
-        publisher: *pub_sub_1
-        subscriber:
+        publishers:
+          - *pub_sub_1
+          - *pub_sub_3
+        subscribers:
+          - *pub_sub_2
     - id: "3"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
@@ -78,13 +100,17 @@ robot_generator:
       initial_position: # Placement of the Robot's Base
         base: { x: 30.0, y: 120.0 }
       motion:
+        operation_state: "stop"
         control:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq3 # Motion Pattern of the Robot
       protocol:
-        publisher: *pub_sub_1
-        subscriber:
+        publishers:
+          - *pub_sub_1
+          - *pub_sub_3
+        subscribers:
+          - *pub_sub_2
     - id: "4"
       arm: # Robotic Arm Description
         count: 2 # Number of Joints (excluding Wrist)
@@ -94,12 +120,16 @@ robot_generator:
       initial_position: # Placement of the Robot's Base
         base: { x: 120.0, y: 30.0 }
       motion:
+        operation_state: "stop"
         control:
           sample_rate : 0.01
           proportional_gain : 10
         pattern: *seq4 # Motion Pattern of the Robot
       protocol:
-        publisher: *pub_sub_1
-        subscriber:
+        publishers:
+          - *pub_sub_1
+          - *pub_sub_3
+        subscribers:
+          - *pub_sub_2
 
 
