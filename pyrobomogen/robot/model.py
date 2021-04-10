@@ -281,6 +281,11 @@ class RobotArm2:
             msg=json.dumps(result).encode()
         )
 
+        await self.publish(
+            exchange_name="db_exchange",
+            msg=json.dumps(result).encode()
+        )
+
         wrist[0] -= self.shoulder[0]
         wrist[1] -= self.shoulder[1]
         return wrist
@@ -339,3 +344,4 @@ class RobotArm2:
                         if (robot_id == message_body["id"]) and (robot_id == self.id):
                             logger.debug(message_body)
                             self.update_operation_state(state=message_body["control"])
+                            return
