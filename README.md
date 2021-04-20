@@ -2,6 +2,8 @@
 
 Python Package / Application to generate 2D Robotic Arm Movements.
 
+![Main Branch CI Workflow Status](https://github.com/virtual-origami/pyrobomogen/workflows/Main%20Branch%20CI/badge.svg?branch=master)
+
 ## Development
 
 ### Python3.x
