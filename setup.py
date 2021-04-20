@@ -17,7 +17,7 @@ with open('requirements.txt') as reqs_f:
 
 
 setup(
-    name='pyrobogen',
+    name='pyrobomogen',
     version=version,
     description='Two-Joint Robotic Arm Motion Generator',
     url='https://github.com/virtual-origami/pyrobomogen',
