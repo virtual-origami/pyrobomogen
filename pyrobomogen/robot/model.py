@@ -49,7 +49,7 @@ import math
 import sys
 import time
 import numpy as np
-import simple_watchdog_timer as swt
+import pyrobomogen.watchdog_timer.watchdog_timer as swt
 from pyrobomogen.pub_sub.AMQP import PubSubAMQP
 
 # logger for this file
