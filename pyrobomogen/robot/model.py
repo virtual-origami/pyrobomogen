@@ -47,15 +47,15 @@ import json
 import logging
 import math
 import sys
-
+import time
 import numpy as np
-
+import simple_watchdog_timer as swt
 from pyrobomogen.pub_sub.AMQP import PubSubAMQP
 
 # logger for this file
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
+                    format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 logger = logging.getLogger("Robot:Model")
-
 
 
 class RobotArm2:
@@ -78,16 +78,16 @@ class RobotArm2:
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
             self.base = np.array(
-                [robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]]
+                [robot_info["base"]["x"], robot_info["base"]["y"]]
             )
             self.shoulder = np.array(
-                [robot_info["initial_position"]["base"]["x"], robot_info["initial_position"]["base"]["y"]]
+                [robot_info["base"]["x"], robot_info["base"]["y"]]
             )
             self.motion_pattern = robot_info["motion"]["pattern"]["task_coordinates"]
 
             self.theta1 = 0.0
             self.theta2 = 0.0
-            self.GOAL_THRESHOLD = 0.01
+            self.GOAL_THRESHOLD = robot_info["motion"]["control"]["goal_threshold"]
 
             self.destination_coordinate = [0, 0]
             self.previous_destination_coordinate = self.destination_coordinate
@@ -95,108 +95,180 @@ class RobotArm2:
             self.sequence_count = 0
 
             self.eventloop = event_loop
+            self.amq_publishers = []
+            self.amq_subscribers = []
+            self.control = "start"
+            self.prev_control = self.control
+            self.wdt = swt.WDT(check_interval_sec=0.04, trigger_delta_sec=0.1, callback=self.wdt_cb)
+            logger.debug(
+                f'Initial Values: Theta1={self.theta1}, Theta2={self.theta2}, GOAL_THRESHOLD={self.GOAL_THRESHOLD}')
+            logger.debug(
+                f'Initial Values: Previous Destination Coordinates Set to: {self.previous_destination_coordinate}')
+            for publisher in robot_info["protocol"]["publishers"]:
+                if publisher["type"] == "amq":
+                    logger.debug('Setting Up AMQP Publisher for Robot')
+                    self.amq_publishers.append(
+                        PubSubAMQP(
+                            eventloop=self.eventloop,
+                            config_file=publisher,
+                            binding_suffix=self.id
+                        )
+                    )
+                else:
+                    logger.error("Provide protocol amq config")
+                    raise AssertionError("Provide protocol amq config")
 
-            logger.debug(f'Initial Values: Theta1={self.theta1}, Theta2={self.theta2}, GOAL_THRESHOLD={self.GOAL_THRESHOLD}')
-            logger.debug(f'Initial Values: Previous Destination Coordinates Set to: {self.previous_destination_coordinate}')
-
-            if robot_info["protocol"]["publisher"]["type"] == "amq":
-                logger.debug('Setting Up AMQP Publisher for Robot')
-                self.publisher = PubSubAMQP(
-                    eventloop=self.eventloop,
-                    config_file=robot_info["protocol"]["publisher"],
-                    binding_suffix=self.id
-                )
-            else:
-                logger.error("Provide protocol amq config")
+            for subscribers in robot_info["protocol"]["subscribers"]:
+                if subscribers["type"] == "amq":
+                    logger.debug('Setting Up AMQP Subcriber for Robot')
+                    self.amq_subscribers.append(
+                        PubSubAMQP(
+                            eventloop=self.eventloop,
+                            config_file=subscribers,
+                            binding_suffix=self.id,
+                            app_callback=self.consume_control_msg
+                        )
+                    )
+                else:
+                    logger.error("Provide protocol amq config")
+                    raise AssertionError("Provide protocol amq config")
 
         except Exception as e:
             logger.error("Exception during creation of RobotArm2", e)
             sys.exit(-1)
 
-    async def publish(self, msg):
+    async def publish(self, exchange_name, msg):
         """publish: publish robotic arm movement data to Message Broker
         - msg: message content
         """
-        await self.publisher.publish(message_content=msg)
+        for publisher in self.amq_publishers:
+            if exchange_name == publisher.exchange_name:
+                await publisher.publish(message_content=msg)
+                logger.debug(f'Pub: Exchange:{exchange_name} Msg:{msg}')
 
     async def connect(self):
         """connect: connect to the Message Broker
         """
-        await self.publisher.connect()
+        for publisher in self.amq_publishers:
+            await publisher.connect()
+
+        for subscriber in self.amq_subscribers:
+            await subscriber.connect(mode="subscriber")
+
+    def update_operation_state(self, state):
+        if state == "start":
+            self.control = "start"
+        elif state == "stop":
+            self.control = "stop"
+        elif state == "off":
+            self.control = "off"
+        else:
+            logger.error("Invalid operational state received")
 
     async def update(self):
         """update: Computes the inverse kinematics for a planar 2DOF arm.
         When out of bounds, rewrite x and y with last correct values
         """
         try:
-            if math.sqrt(
-                    (self.destination_coordinate[0] ** 2) +
-                    (self.destination_coordinate[1] ** 2)
-            ) > (
-                    self.length_shoulder_to_elbow + self.length_elbow_to_gripper
-            ):
-                raise Exception("Coordinates cannot be reached by the Robot")
+            if self.control == "start":
+                if math.sqrt(
+                        (self.destination_coordinate[0] ** 2) +
+                        (self.destination_coordinate[1] ** 2)
+                ) > (
+                        self.length_shoulder_to_elbow + self.length_elbow_to_gripper
+                ):
+                    raise Exception("Coordinates cannot be reached by the Robot")
 
-            theta2_inner = (
-                                   (self.destination_coordinate[0] ** 2) + (self.destination_coordinate[1] ** 2) -
-                                   (self.length_shoulder_to_elbow ** 2) - (self.length_elbow_to_gripper ** 2)
-                           ) / (2 * self.length_shoulder_to_elbow * self.length_elbow_to_gripper)
+                theta2_inner = (
+                                       (self.destination_coordinate[0] ** 2) + (self.destination_coordinate[1] ** 2) -
+                                       (self.length_shoulder_to_elbow ** 2) - (self.length_elbow_to_gripper ** 2)
+                               ) / (2 * self.length_shoulder_to_elbow * self.length_elbow_to_gripper)
 
-            if (theta2_inner > 1) or (theta2_inner < -1):
-                raise Exception("Coordinates cannot be reached by the Robot")
+                if (theta2_inner > 1) or (theta2_inner < -1):
+                    raise Exception("Coordinates cannot be reached by the Robot")
 
-            theta2_goal = np.arccos(theta2_inner)
-            if theta2_goal < 0:
-                theta1_goal = np.math.atan2(
-                    self.destination_coordinate[1],
-                    self.destination_coordinate[0]
-                ) + \
-                    np.math.atan2(
-                        self.length_elbow_to_gripper * np.sin(theta2_goal),
-                        (
-                                self.length_shoulder_to_elbow +
-                                self.length_elbow_to_gripper *
-                                np.cos(theta2_goal)
-                        )
+                theta2_goal = np.arccos(theta2_inner)
+                if theta2_goal < 0:
+                    theta1_goal = np.math.atan2(
+                        self.destination_coordinate[1],
+                        self.destination_coordinate[0]
+                    ) + \
+                                  np.math.atan2(
+                                      self.length_elbow_to_gripper * np.sin(theta2_goal),
+                                      (
+                                              self.length_shoulder_to_elbow +
+                                              self.length_elbow_to_gripper *
+                                              np.cos(theta2_goal)
+                                      )
+                                  )
+                else:
+                    theta1_goal = np.math.atan2(
+                        self.destination_coordinate[1],
+                        self.destination_coordinate[0]
+                    ) - \
+                                  np.math.atan2(
+                                      self.length_elbow_to_gripper * np.sin(theta2_goal),
+                                      (
+                                              self.length_shoulder_to_elbow +
+                                              self.length_elbow_to_gripper *
+                                              np.cos(theta2_goal)
+                                      )
+                                  )
+
+                def _angle_difference(theta1, theta2):
+                    return (theta1 - theta2 + np.pi) % (2 * np.pi) - np.pi
+
+                self.theta1 = self.theta1 + (
+                        self.proportional_gain * _angle_difference(theta1_goal, self.theta1) * self.sample_time
+                )
+                self.theta2 = self.theta2 + (
+                        self.proportional_gain * _angle_difference(theta2_goal, self.theta2) * self.sample_time
+                )
+
+                self.previous_destination_coordinate = self.destination_coordinate
+
+                res = await self.get_wrist()
+                wrist = res[0]
+                elbow = res[1]
+
+                # check goal
+                if self.destination_coordinate[0] is not None and self.destination_coordinate[1] is not None:
+                    d2goal = np.hypot(
+                        wrist[0] - self.destination_coordinate[0] - self.shoulder[0],
+                        wrist[1] - self.destination_coordinate[1] - self.shoulder[1]
                     )
-            else:
-                theta1_goal = np.math.atan2(
-                    self.destination_coordinate[1],
-                    self.destination_coordinate[0]
-                ) - \
-                    np.math.atan2(
-                        self.length_elbow_to_gripper * np.sin(theta2_goal),
-                        (
-                                self.length_shoulder_to_elbow +
-                                self.length_elbow_to_gripper *
-                                np.cos(theta2_goal)
-                        )
-                    )
 
-            def _angle_difference(theta1, theta2):
-                return (theta1 - theta2 + np.pi) % (2 * np.pi) - np.pi
+                if abs(d2goal) < self.GOAL_THRESHOLD and self.destination_coordinate[0] is not None:
+                    self.get_motion_sequence()
 
-            self.theta1 = self.theta1 + (
-                self.proportional_gain * _angle_difference(theta1_goal, self.theta1) * self.sample_time
-                )
-            self.theta2 = self.theta2 + (
-                self.proportional_gain * _angle_difference(theta2_goal, self.theta2) * self.sample_time
-                )
-
-            self.previous_destination_coordinate = self.destination_coordinate
-
-            wrist = await self.generate_inverse_kinematics()
-
-            # check goal
-            if self.destination_coordinate[0] is not None and self.destination_coordinate[1] is not None:
-                d2goal = np.hypot(
-                    wrist[0] - self.destination_coordinate[0],
-                    wrist[1] - self.destination_coordinate[1]
+                result_generator_robot = {
+                    "id": self.id,
+                    "base": self.base.tolist(),
+                    "shoulder": self.shoulder.tolist(),
+                    "theta1": self.theta1,
+                    "theta2": self.theta2,
+                    "timestamp": time.time_ns(),
+                }
+                result_visual_robot = {
+                    "id": self.id,
+                    "base": self.base.tolist(),
+                    "shoulder": self.shoulder.tolist(),
+                    "elbow": elbow.tolist(),
+                    "wrist": wrist.tolist(),
+                    "theta1": self.theta1,
+                    "theta2": self.theta2,
+                    "timestamp": time.time_ns(),
+                }
+                await self.publish(
+                    exchange_name="generator_robot",
+                    msg=json.dumps(result_generator_robot).encode()
                 )
 
-            if abs(d2goal) < self.GOAL_THRESHOLD and self.destination_coordinate[0] is not None:
-                self.get_motion_sequence()
-
+                await self.publish(
+                    exchange_name="visual_robot",
+                    msg=json.dumps(result_visual_robot).encode()
+                )
+            self.wdt.update()
             await asyncio.sleep(self.sample_time)
 
         except Exception as e:
@@ -204,46 +276,27 @@ class RobotArm2:
             logger.error(e)
             self.destination_coordinate = self.previous_destination_coordinate
 
-    async def generate_inverse_kinematics(self):
+    async def get_wrist(self):
         """generate_inverse_kinematics: Ploting inverse kinematics for Robotic Arm
         """
-        result = dict()
 
         elbow = self.shoulder + \
-            np.array(
-                [
-                    self.length_shoulder_to_elbow * np.cos(self.theta1),
-                    self.length_shoulder_to_elbow * np.sin(self.theta1)
-                ]
-            )
+                np.array(
+                    [
+                        self.length_shoulder_to_elbow * np.cos(self.theta1),
+                        self.length_shoulder_to_elbow * np.sin(self.theta1)
+                    ]
+                )
 
         wrist = elbow + \
-            np.array(
-                [
-                    self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
-                    self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
-                ]
-            )
+                np.array(
+                    [
+                        self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
+                        self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
+                    ]
+                )
 
-        result.update(
-            {
-                "id": self.id,
-                "base": self.base.tolist(),
-                "shoulder": self.shoulder.tolist(),
-                "elbow": elbow.tolist(),
-                "wrist": wrist.tolist(),
-                "theta1": self.theta1,
-                "theta2": self.theta2
-            }
-        )
-
-        await self.publish(
-            msg=json.dumps(result).encode()
-        )
-
-        wrist[0] -= self.shoulder[0]
-        wrist[1] -= self.shoulder[1]
-        return wrist
+        return [wrist, elbow]
 
     def get_motion_sequence(self):
         """get_motion_sequence: get motion sequence of the robotic arm"""
@@ -252,7 +305,7 @@ class RobotArm2:
             if self.sequence_count >= len(self.motion_pattern):
                 self.sequence_count = 0
             self.destination_coordinate = [
-                self.motion_pattern[self.sequence_count]["x"],
+                self.motion_pattern[self.sequence_count]["x"] ,
                 self.motion_pattern[self.sequence_count]["y"]
             ]
             self.sequence_count += 1
@@ -260,26 +313,50 @@ class RobotArm2:
     def get_forward_kinematics(self):
         """get_forward_kinematics: Forward Kinematics for the Robotic Arm"""
         elbow = self.shoulder + \
-            np.array(
-                [
-                    self.length_shoulder_to_elbow * np.cos(self.theta1),
-                    self.length_shoulder_to_elbow * np.sin(self.theta1)
-                ]
-            )
+                np.array(
+                    [
+                        self.length_shoulder_to_elbow * np.cos(self.theta1),
+                        self.length_shoulder_to_elbow * np.sin(self.theta1)
+                    ]
+                )
 
         wrist = elbow + \
-            np.array(
-                [
-                    self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
-                    self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
-                ]
-            )
-
+                np.array(
+                    [
+                        self.length_elbow_to_gripper * np.cos(self.theta1 + self.theta2),
+                        self.length_elbow_to_gripper * np.sin(self.theta1 + self.theta2)
+                    ]
+                )
         return dict(
-            shoulder=(self.shoulder[0], self.shoulder[1]),
-            elbow=(elbow[0], elbow[1]),
-            wrist=(wrist[0], wrist[1])
+            elbow=elbow.tolist(),
+            wrist=wrist.tolist()
         )
 
     def __get_all_states__(self):
         logger.debug(vars(self))
+
+    def consume_control_msg(self, **kwargs):
+        exchange_name = kwargs["exchange_name"]
+        binding_name = kwargs["binding_name"]
+        message_body = json.loads(kwargs["message_body"])
+
+        for subscriber in self.amq_subscribers:
+            if subscriber.exchange_name == exchange_name:
+                if "control.robot" in binding_name:
+                    binding_delimited_array = binding_name.split(".")
+                    robot_id = binding_delimited_array[len(binding_delimited_array) - 1]
+                    msg_attributes = message_body.keys()
+                    if ("id" in msg_attributes) and ("control" in msg_attributes):
+                        if (robot_id == message_body["id"]) and (robot_id == self.id):
+                            logger.debug(f'Sub: Exchange: {exchange_name} Msg:{message_body}')
+                            self.update_operation_state(state=message_body["control"])
+                            self.wdt.reset()
+                            self.wdt.resume()
+                            return
+
+    def wdt_cb(self, wdt):
+        wdt.pause()
+        if self.control != "off":
+            self.update_operation_state(state="start")
+        wdt.reset()
+        wdt.resume()

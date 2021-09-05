@@ -1,11 +1,10 @@
 # Robotic Arm Motion Generator Configuration
-robot_generator:
-  version: "0.1" # Configuration Version
+preset:
   sequence1: &seq1 # Motion Sequence of Robotic Arm
     task_coordinates:
-      - { x: 3, y: 5 }
-      - { x: 5, y: 7 }
-      - { x: 7, y: 2 }
+      - { x: 1, y: 5 }
+      - { x: 2, y: 1 }
+      - { x: 5, y: 1 }
   sequence2: &seq2 # Motion Sequence of Robotic Arm
     task_coordinates:
       - { x: 2, y: 3 }
@@ -29,77 +28,73 @@ robot_generator:
       username: "admin"
       password: "rabbit"
   pub_sub:
-    - pub_sub_1: &pub_sub_1
+    - pub_sub_1: &pub_generator_robot
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
-        exchange: "vws_fublish_exchange"
+        exchange: "generator_robot"
         binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
-          - "telemetry.robot."
+          - "generator.robot."
+    - pub_sub_2: &sub_control_robot
+        type: "amq"
+        broker: *amq_connect_info
+        credential: *amq_credential
+        exchange: "control_robot"
+        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
+          - "control.robot."
+    - pub_sub_3: &pub_visual_robot
+        type: "amq"
+        broker: *amq_connect_info
+        credential: *amq_credential
+        exchange: "visual_robot"
+        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
+          - "visual.generator.robot."
+  robot_arm_design:
+    two_arm_robot_1: &two_arm_robot_1
+      count: 2 # Number of Joints (excluding Wrist)
+      length:
+        shoulder_to_elbow: 6.0 # Length in Meters
+        elbow_to_gripper: 6.0 # Length in Meters
+  robot_controllers:
+    - controller_1: &controller_1
+        sample_rate: 0.1
+        proportional_gain: 3
+        goal_threshold: 0.1
+  pub_sub_protocols:
+    - pub_sub_protocol_1: &pub_sub_protocol_1
+        publishers:
+          - *pub_generator_robot
+          - *pub_visual_robot
+        subscribers:
+          - *sub_control_robot
+robot_generator:
+  version: "0.1" # Configuration Version
   robots: # List of Robots to be simulated with unique ID
     - id: "1"
-      arm: # Robotic Arm Description
-        count: 2 # Number of Joints (excluding Wrist)
-        length:
-          shoulder_to_elbow : 10.0 # Length in Meters
-          elbow_to_gripper :  10.0 # Length in Meters
-      initial_position: # Placement of the Robot's Base
-        base: { x: 30.0, y: 30.0 }
+      arm: *two_arm_robot_1
+      base: { x: 35.0, y: 50.0 }
       motion:
-        control:
-          sample_rate : 0.01
-          proportional_gain : 10
-        pattern: *seq1 # Motion Pattern of the Robot
-      protocol:
-        publisher: *pub_sub_1
-        subscriber:
-    - id: "2"
-      arm: # Robotic Arm Description
-        count: 2 # Number of Joints (excluding Wrist)
-        length:
-          shoulder_to_elbow : 10.0 # Length in Meters
-          elbow_to_gripper :  10.0 # Length in Meters
-      initial_position: # Placement of the Robot's Base
-        base: { x: 120.0, y: 120.0 }
-      motion:
-        control:
-          sample_rate : 0.01
-          proportional_gain : 10
+        control: *controller_1
         pattern: *seq2 # Motion Pattern of the Robot
-      protocol:
-        publisher: *pub_sub_1
-        subscriber:
+      protocol: *pub_sub_protocol_1
+    - id: "2"
+      arm: *two_arm_robot_1
+      base: { x: 130.0, y: 120.0 }
+      motion:
+        control: *controller_1
+        pattern: *seq2 # Motion Pattern of the Robot
+      protocol: *pub_sub_protocol_1
     - id: "3"
-      arm: # Robotic Arm Description
-        count: 2 # Number of Joints (excluding Wrist)
-        length:
-          shoulder_to_elbow : 10.0 # Length in Meters
-          elbow_to_gripper :  10.0 # Length in Meters
-      initial_position: # Placement of the Robot's Base
-        base: { x: 30.0, y: 120.0 }
+      arm: *two_arm_robot_1
+      base: { x: 130.0, y: 50.0 }
       motion:
-        control:
-          sample_rate : 0.01
-          proportional_gain : 10
-        pattern: *seq3 # Motion Pattern of the Robot
-      protocol:
-        publisher: *pub_sub_1
-        subscriber:
+        control: *controller_1
+        pattern: *seq2 # Motion Pattern of the Robot
+      protocol: *pub_sub_protocol_1
     - id: "4"
-      arm: # Robotic Arm Description
-        count: 2 # Number of Joints (excluding Wrist)
-        length:
-          shoulder_to_elbow : 10.0 # Length in Meters
-          elbow_to_gripper :  10.0 # Length in Meters
-      initial_position: # Placement of the Robot's Base
-        base: { x: 120.0, y: 30.0 }
+      arm: *two_arm_robot_1
+      base: { x: 35.0, y: 120.0 }
       motion:
-        control:
-          sample_rate : 0.01
-          proportional_gain : 10
-        pattern: *seq4 # Motion Pattern of the Robot
-      protocol:
-        publisher: *pub_sub_1
-        subscriber:
-
-
+        control: *controller_1
+        pattern: *seq2 # Motion Pattern of the Robot
+      protocol: *pub_sub_protocol_1

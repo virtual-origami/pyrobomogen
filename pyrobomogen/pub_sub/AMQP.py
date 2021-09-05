@@ -18,7 +18,9 @@ from aio_pika import exceptions as aio_pika_exception
 
 # logger for this file
 logger = logging.getLogger("PubSub:AMQP")
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format='%(levelname)-2s [%(filename)s:%(lineno)d] %(message)s')
+logging.basicConfig(stream=sys.stdout,
+                    level=logging.DEBUG,
+                    format='%(levelname)-2s [%(filename)s:%(lineno)d] %(message)s')
 aio_pika_logger = logging.getLogger('aio_pika')
 aio_pika_logger.setLevel(logging.ERROR)
 
@@ -55,7 +57,7 @@ class PubSubAMQP:
             logger.error(e)
             sys.exit(-1)
 
-    async def connect(self):
+    async def connect(self, mode="publisher"):
         """connect: Connect to the Message Broker"""
         try:
             logger.debug('Connecting the Broker: amqp://%s %s', self.broker_info["address"], self.broker_info["port"])
@@ -67,6 +69,8 @@ class PubSubAMQP:
                 loop=self.eventloop
             )
             self.channel = await self.connection.channel()
+            if mode == "subscriber":
+                await self._sub_connect()
         except aio_pika_exception.AMQPException as e:
             logger.error('Exception while Connecting to Broker')
             logger.error(e)
@@ -91,7 +95,7 @@ class PubSubAMQP:
         """_sub_on_message: private method to handle consumption of message during subscription"""
 
         async with message.process():
-            logger.debug(f"msg received: Exchange {message.exchange}, Routing {message.routing_key}")
+            # logger.debug(f"msg received: Exchange {message.exchange}, Routing {message.routing_key}")
             if self.app_callback is not None:
                 self.app_callback(
                     exchange_name=message.exchange,

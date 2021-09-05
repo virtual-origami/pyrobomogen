@@ -27,6 +27,9 @@ logger.addHandler(handler)
 asyncio_logger = logging.getLogger('asyncio')
 asyncio_logger.setLevel(logging.WARNING)
 
+wdt_logger = logging.getLogger('watchdog_timer')
+wdt_logger.setLevel(logging.WARNING)
+
 is_sighup_received = False
 
 # Robots in Workspace
@@ -48,7 +51,7 @@ def parse_arguments():
 
 def sighup_handler(name):
     """SIGHUP HANDLER"""
-    logger.debug(f'signal_handler {name}')
+    #logger.debug(f'signal_handler {name}')
     logger.info('Updating the Robotic Configuration')
     global is_sighup_received
     is_sighup_received = True
@@ -69,11 +72,6 @@ async def app(eventloop, config):
             break
 
         logger.debug("Robot Generator Version: %s", generator_config['version'])
-
-        # check if amq or mqtt key description present in configuration
-        if ("amq" not in generator_config) and ("mqtt" not in generator_config):
-            logger.critical("Please provide either 'amq' or 'mqtt' configuration")
-            sys.exit(-1)
 
         # robot instantiation
         for robot in generator_config["robots"]:
