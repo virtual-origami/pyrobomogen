@@ -42,11 +42,11 @@ preset:
         exchange: "control_robot"
         binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
           - "control.robot."
-    - pub_sub_3: &pub_visual_robot
+    - pub_sub_3: &pub_visual
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
-        exchange: "visual_robot"
+        exchange: "visual"
         binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
           - "visual.generator.robot."
   robot_arm_design:
@@ -64,7 +64,7 @@ preset:
     - pub_sub_protocol_1: &pub_sub_protocol_1
         publishers:
           - *pub_generator_robot
-          - *pub_visual_robot
+          - *pub_visual
         subscribers:
           - *sub_control_robot
 robot_generator:
@@ -84,17 +84,17 @@ robot_generator:
         control: *controller_1
         pattern: *seq2 # Motion Pattern of the Robot
       protocol: *pub_sub_protocol_1
-    - id: "3"
-      arm: *two_arm_robot_1
-      base: { x: 130.0, y: 50.0 }
-      motion:
-        control: *controller_1
-        pattern: *seq2 # Motion Pattern of the Robot
-      protocol: *pub_sub_protocol_1
-    - id: "4"
-      arm: *two_arm_robot_1
-      base: { x: 35.0, y: 120.0 }
-      motion:
-        control: *controller_1
-        pattern: *seq2 # Motion Pattern of the Robot
-      protocol: *pub_sub_protocol_1
+#    - id: "3"
+#      arm: *two_arm_robot_1
+#      base: { x: 130.0, y: 50.0 }
+#      motion:
+#        control: *controller_1
+#        pattern: *seq2 # Motion Pattern of the Robot
+#      protocol: *pub_sub_protocol_1
+#    - id: "4"
+#      arm: *two_arm_robot_1
+#      base: { x: 35.0, y: 120.0 }
+#      motion:
+#        control: *controller_1
+#        pattern: *seq2 # Motion Pattern of the Robot
+#      protocol: *pub_sub_protocol_1

@@ -49,8 +49,8 @@ import math
 import sys
 import time
 import numpy as np
-import pyrobomogen.watchdog_timer.watchdog_timer as swt
-from pyrobomogen.pub_sub.AMQP import PubSubAMQP
+import watchdog_timer.watchdog_timer as swt
+from pub_sub.AMQP import PubSubAMQP
 
 # logger for this file
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
@@ -265,7 +265,7 @@ class RobotArm2:
                 )
 
                 await self.publish(
-                    exchange_name="visual_robot",
+                    exchange_name="visual",
                     msg=json.dumps(result_visual_robot).encode()
                 )
             self.wdt.update()
