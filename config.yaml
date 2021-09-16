@@ -22,7 +22,7 @@ preset:
       - { x: 5, y: 4 }
   amq: # AMQP Broker Information
     broker: &amq_connect_info
-      address: "localhost"
+      address: "rabbitmq"
       port: 5672
     credentials: &amq_credential
       username: "admin"
@@ -84,6 +84,7 @@ robot_generator:
         control: *controller_1
         pattern: *seq2 # Motion Pattern of the Robot
       protocol: *pub_sub_protocol_1
+
 #    - id: "3"
 #      arm: *two_arm_robot_1
 #      base: { x: 130.0, y: 50.0 }

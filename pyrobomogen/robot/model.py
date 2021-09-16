@@ -49,8 +49,8 @@ import math
 import sys
 import time
 import numpy as np
-import watchdog_timer.watchdog_timer as swt
-from pub_sub.AMQP import PubSubAMQP
+from pyrobomogen.watchdog_timer import WDT
+from pyrobomogen.pub_sub import PubSubAMQP
 
 # logger for this file
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
@@ -99,7 +99,7 @@ class RobotArm2:
             self.amq_subscribers = []
             self.control = "start"
             self.prev_control = self.control
-            self.wdt = swt.WDT(check_interval_sec=0.04, trigger_delta_sec=0.1, callback=self.wdt_cb)
+            self.wdt = WDT(check_interval_sec=0.04, trigger_delta_sec=0.1, callback=self.wdt_cb)
             logger.debug(
                 f'Initial Values: Theta1={self.theta1}, Theta2={self.theta2}, GOAL_THRESHOLD={self.GOAL_THRESHOLD}')
             logger.debug(

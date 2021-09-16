@@ -10,7 +10,7 @@ import os
 import signal
 import sys
 import yaml
-from robot.model import RobotArm2
+from pyrobomogen.robot import RobotArm2
 
 logging.basicConfig(level=logging.WARNING, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
