@@ -10,26 +10,38 @@ Python Package / Application to generate 2D Robotic Arm Movements.
 
 1. Create a Virtual Environment
    
-        $ virtualenv -m venv venv
-
+    ```bash
+   $ virtualenv -m venv venv
+   ```
+   
 2. Activate Virtual Environment
 
-        $ . venv/bin/activate 
+    ```bash
+    $ . venv/bin/activate 
+    ```
 
 3. Install the Dependencies
 
-        pip install -r requirements.txt
+    ```bash
+    $ pip install -r requirements.txt
+    ```
 
 4. Install `pyrobomogen` as python package for development:
 
-        pip install -e .
-
+    ```bash
+   $ pip install -e .
+   ```
+   
    This makes the `robot-generator` binary available as a CLI
 
 ### Usage
-Basic usage:
+Run `robot-generator` binary using command line:
 
-    $ robot-generator -c config.yaml
+- -c configuration file path/name
+
+```bash
+$ robot-generator -c config.yaml
+```
 
 ### Message Broker (RabbitMQ)
 
@@ -41,14 +53,21 @@ __NOTE__: The `rabbitmqtt` stack needs an external docker network called `iotsta
 
 1. To build Docker Images locally use:
 
-        docker build -t pyrobomogen .
+    ```bash
+    $ docker build -t pyrobomogen:<version> .
+    ```
 
 2. To run the Application along with the RabbitMQ Broker connect the container with the `iotstack` network using:
 
-        docker run --rm --network=iotstack pyrobomogen
-    
+    ```bash
+    $ docker run --rm --network=iotstack -t pyrobomogen:<version>
+    ```
+
     __INFO__: Change the broker address in the `config.yaml` file to `rabbitmq` (name of the RabbitMQ Container in _rabbitmqtt_ stack)
 
 3. To run the a custom configuration for the Container use:
 
-        docker run --rm -v $(pwd)/config.yaml:/pyrobomogen/config.yaml --network=iotstack pyrobomogen
+    ```bash
+    $ docker run --rm -v $(pwd)/config.yaml:/pyrobomogen/config.yaml --network=iotstack -t pyrobomogen:<version>
+    ```
+
