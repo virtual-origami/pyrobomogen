@@ -48,9 +48,10 @@ import logging
 import math
 import sys
 import time
+import traceback
+
 import numpy as np
 from pyrobomogen.watchdog_timer import WDT
-from pyrobomogen.pub_sub import PubSubAMQP
 
 # logger for this file
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
@@ -74,14 +75,14 @@ class RobotArm2:
 
             self.id = robot_info["id"]
             self.proportional_gain = robot_info["motion"]["control"]["proportional_gain"]
-            self.sample_time = robot_info["motion"]["control"]["sample_rate"]
+            self.sample_interval = robot_info["motion"]["control"]["sample_interval"]
             self.length_shoulder_to_elbow = robot_info["arm"]["length"]["shoulder_to_elbow"]
             self.length_elbow_to_gripper = robot_info["arm"]["length"]["elbow_to_gripper"]
             self.base = np.array(
                 [robot_info["base"]["x"], robot_info["base"]["y"]]
             )
             self.shoulder = np.array(
-                [robot_info["base"]["x"], robot_info["base"]["y"]]
+                [robot_info["shoulder"]["x"], robot_info["shoulder"]["y"]]
             )
             self.motion_pattern = robot_info["motion"]["pattern"]["task_coordinates"]
 
@@ -91,69 +92,22 @@ class RobotArm2:
 
             self.destination_coordinate = [0, 0]
             self.previous_destination_coordinate = self.destination_coordinate
-
+            self.generator_result = None
+            self.visual_result = None
             self.sequence_count = 0
 
             self.eventloop = event_loop
-            self.amq_publishers = []
-            self.amq_subscribers = []
             self.control = "start"
             self.prev_control = self.control
-            self.wdt = WDT(check_interval_sec=0.04, trigger_delta_sec=0.1, callback=self.wdt_cb)
+            self.wdt = WDT(check_interval_sec=0.1, trigger_delta_sec=5, callback=self.wdt_cb)
             logger.debug(
                 f'Initial Values: Theta1={self.theta1}, Theta2={self.theta2}, GOAL_THRESHOLD={self.GOAL_THRESHOLD}')
             logger.debug(
                 f'Initial Values: Previous Destination Coordinates Set to: {self.previous_destination_coordinate}')
-            for publisher in robot_info["protocol"]["publishers"]:
-                if publisher["type"] == "amq":
-                    logger.debug('Setting Up AMQP Publisher for Robot')
-                    self.amq_publishers.append(
-                        PubSubAMQP(
-                            eventloop=self.eventloop,
-                            config_file=publisher,
-                            binding_suffix=self.id
-                        )
-                    )
-                else:
-                    logger.error("Provide protocol amq config")
-                    raise AssertionError("Provide protocol amq config")
-
-            for subscribers in robot_info["protocol"]["subscribers"]:
-                if subscribers["type"] == "amq":
-                    logger.debug('Setting Up AMQP Subcriber for Robot')
-                    self.amq_subscribers.append(
-                        PubSubAMQP(
-                            eventloop=self.eventloop,
-                            config_file=subscribers,
-                            binding_suffix=self.id,
-                            app_callback=self.consume_control_msg
-                        )
-                    )
-                else:
-                    logger.error("Provide protocol amq config")
-                    raise AssertionError("Provide protocol amq config")
 
         except Exception as e:
             logger.error("Exception during creation of RobotArm2", e)
             sys.exit(-1)
-
-    async def publish(self, exchange_name, msg):
-        """publish: publish robotic arm movement data to Message Broker
-        - msg: message content
-        """
-        for publisher in self.amq_publishers:
-            if exchange_name == publisher.exchange_name:
-                await publisher.publish(message_content=msg)
-                logger.debug(f'Pub: Exchange:{exchange_name} Msg:{msg}')
-
-    async def connect(self):
-        """connect: connect to the Message Broker
-        """
-        for publisher in self.amq_publishers:
-            await publisher.connect()
-
-        for subscriber in self.amq_subscribers:
-            await subscriber.connect(mode="subscriber")
 
     def update_operation_state(self, state):
         if state == "start":
@@ -219,10 +173,10 @@ class RobotArm2:
                     return (theta1 - theta2 + np.pi) % (2 * np.pi) - np.pi
 
                 self.theta1 = self.theta1 + (
-                        self.proportional_gain * _angle_difference(theta1_goal, self.theta1) * self.sample_time
+                        self.proportional_gain * _angle_difference(theta1_goal, self.theta1) * self.sample_interval
                 )
                 self.theta2 = self.theta2 + (
-                        self.proportional_gain * _angle_difference(theta2_goal, self.theta2) * self.sample_time
+                        self.proportional_gain * _angle_difference(theta2_goal, self.theta2) * self.sample_interval
                 )
 
                 self.previous_destination_coordinate = self.destination_coordinate
@@ -241,7 +195,7 @@ class RobotArm2:
                 if abs(d2goal) < self.GOAL_THRESHOLD and self.destination_coordinate[0] is not None:
                     self.get_motion_sequence()
 
-                result_generator_robot = {
+                self.generator_result = {
                     "id": self.id,
                     "base": self.base.tolist(),
                     "shoulder": self.shoulder.tolist(),
@@ -249,7 +203,7 @@ class RobotArm2:
                     "theta2": self.theta2,
                     "timestamp": time.time_ns(),
                 }
-                result_visual_robot = {
+                self.visual_result = {
                     "id": self.id,
                     "base": self.base.tolist(),
                     "shoulder": self.shoulder.tolist(),
@@ -259,21 +213,15 @@ class RobotArm2:
                     "theta2": self.theta2,
                     "timestamp": time.time_ns(),
                 }
-                await self.publish(
-                    exchange_name="generator_robot",
-                    msg=json.dumps(result_generator_robot).encode()
-                )
 
-                await self.publish(
-                    exchange_name="visual",
-                    msg=json.dumps(result_visual_robot).encode()
-                )
-            self.wdt.update()
-            await asyncio.sleep(self.sample_time)
+                self.wdt.update()
+            else:
+                self.generator_result = None
+                self.visual_result = None
 
         except Exception as e:
             logger.error('Exception during updating Arm Movement Data')
-            logger.error(e)
+            logger.error(traceback.print_exc())
             self.destination_coordinate = self.previous_destination_coordinate
 
     async def get_wrist(self):
@@ -305,7 +253,7 @@ class RobotArm2:
             if self.sequence_count >= len(self.motion_pattern):
                 self.sequence_count = 0
             self.destination_coordinate = [
-                self.motion_pattern[self.sequence_count]["x"] ,
+                self.motion_pattern[self.sequence_count]["x"],
                 self.motion_pattern[self.sequence_count]["y"]
             ]
             self.sequence_count += 1
@@ -335,28 +283,14 @@ class RobotArm2:
     def __get_all_states__(self):
         logger.debug(vars(self))
 
-    def consume_control_msg(self, **kwargs):
-        exchange_name = kwargs["exchange_name"]
-        binding_name = kwargs["binding_name"]
-        message_body = json.loads(kwargs["message_body"])
-
-        for subscriber in self.amq_subscribers:
-            if subscriber.exchange_name == exchange_name:
-                if "control.robot" in binding_name:
-                    binding_delimited_array = binding_name.split(".")
-                    robot_id = binding_delimited_array[len(binding_delimited_array) - 1]
-                    msg_attributes = message_body.keys()
-                    if ("id" in msg_attributes) and ("control" in msg_attributes):
-                        if (robot_id == message_body["id"]) and (robot_id == self.id):
-                            logger.debug(f'Sub: Exchange: {exchange_name} Msg:{message_body}')
-                            self.update_operation_state(state=message_body["control"])
-                            self.wdt.reset()
-                            self.wdt.resume()
-                            return
+    def control_msg_handler(self, message_body):
+        self.update_operation_state(state=message_body["control"])
+        self.wdt.update()
+        self.wdt.resume()
 
     def wdt_cb(self, wdt):
         wdt.pause()
         if self.control != "off":
             self.update_operation_state(state="start")
-        wdt.reset()
-        wdt.resume()
+            logger.debug(f'WDT: Robot: {self.id} started again')
+

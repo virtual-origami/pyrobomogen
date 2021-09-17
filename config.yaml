@@ -22,10 +22,16 @@ preset:
       - { x: 5, y: 4 }
   amq: # AMQP Broker Information
     broker: &amq_connect_info
-      address: "rabbitmq"
+      address: "localhost"
       port: 5672
     credentials: &amq_credential
       username: "admin"
+      password: "rabbit"
+  redis: &redis_connect_info
+    server:
+      address: "localhost"
+      port: 6379
+    credentials:
       password: "rabbit"
   pub_sub:
     - pub_sub_1: &pub_generator_robot
@@ -33,22 +39,22 @@ preset:
         broker: *amq_connect_info
         credential: *amq_credential
         exchange: "generator_robot"
-        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
-          - "generator.robot."
+        queue: "generator_robot_rk"
+        handler:
     - pub_sub_2: &sub_control_robot
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
         exchange: "control_robot"
-        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
-          - "control.robot."
+        queue: "control_robot_rk"
+        handler: "robot_control_msg_handler"
     - pub_sub_3: &pub_visual
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
         exchange: "visual"
-        binding_keys: # Default Queue Logic will be: <binding_key>.robot.<id>
-          - "visual.generator.robot."
+        queue: "visual_generator_robot_rk"
+        handler:
   robot_arm_design:
     two_arm_robot_1: &two_arm_robot_1
       count: 2 # Number of Joints (excluding Wrist)
@@ -57,7 +63,7 @@ preset:
         elbow_to_gripper: 6.0 # Length in Meters
   robot_controllers:
     - controller_1: &controller_1
-        sample_rate: 0.1
+        sample_interval: 0.2
         proportional_gain: 3
         goal_threshold: 0.1
   pub_sub_protocols:
@@ -69,33 +75,39 @@ preset:
           - *sub_control_robot
 robot_generator:
   version: "0.1" # Configuration Version
+  in_mem_db: *redis_connect_info
+  protocol: *pub_sub_protocol_1
+  update_interval: *controller_1
   robots: # List of Robots to be simulated with unique ID
     - id: "1"
       arm: *two_arm_robot_1
       base: { x: 35.0, y: 50.0 }
+      shoulder: { x: 35.0, y: 50.0 }
       motion:
         control: *controller_1
-        pattern: *seq2 # Motion Pattern of the Robot
-      protocol: *pub_sub_protocol_1
+        pattern: *seq1 # Motion Pattern of the Robot
     - id: "2"
       arm: *two_arm_robot_1
-      base: { x: 130.0, y: 120.0 }
+      base: { x: 35.0, y: 120.0 }
+      shoulder: { x: 35.0, y: 120.0 }
       motion:
         control: *controller_1
         pattern: *seq2 # Motion Pattern of the Robot
-      protocol: *pub_sub_protocol_1
-
 #    - id: "3"
 #      arm: *two_arm_robot_1
 #      base: { x: 130.0, y: 50.0 }
+#      shoulder: { x: 130.0, y: 50.0 }
 #      motion:
 #        control: *controller_1
-#        pattern: *seq2 # Motion Pattern of the Robot
+#        pattern: *seq3 # Motion Pattern of the Robot
 #      protocol: *pub_sub_protocol_1
 #    - id: "4"
 #      arm: *two_arm_robot_1
-#      base: { x: 35.0, y: 120.0 }
+#      base: { x: 130.0, y: 120.0 }
+#      shoulder: { x: 130.0, y: 120.0 }
 #      motion:
 #        control: *controller_1
-#        pattern: *seq2 # Motion Pattern of the Robot
+#        pattern: *seq4 # Motion Pattern of the Robot
 #      protocol: *pub_sub_protocol_1
+
+

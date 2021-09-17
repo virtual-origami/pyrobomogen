@@ -2,11 +2,12 @@ from __future__ import generator_stop
 from __future__ import annotations
 
 from .robot.model import RobotArm2
-from .pub_sub.AMQP import PubSubAMQP
-
+from .robots import WSRobots
+from .cli import app_main
 __all__ = [
     'RobotArm2',
-    'PubSubAMQP'
+    'WSRobots',
+    'app_main'
 ]
 
 __version__ = '0.9.0'

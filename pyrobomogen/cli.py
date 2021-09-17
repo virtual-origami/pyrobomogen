@@ -10,9 +10,9 @@ import os
 import signal
 import sys
 import yaml
-from pyrobomogen.robot import RobotArm2
+from pyrobomogen.robots import WSRobots
 
-logging.basicConfig(level=logging.WARNING, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
 # logger for this file
 logger = logging.getLogger(__name__)
@@ -31,15 +31,13 @@ wdt_logger = logging.getLogger('watchdog_timer')
 wdt_logger.setLevel(logging.WARNING)
 
 is_sighup_received = False
-
-# Robots in Workspace
-robots_in_ws = []
+ws_robots = None
 
 
 def _graceful_shutdown():
-    global robots_in_ws
-    for each_robot in robots_in_ws:
-        del each_robot
+    global ws_robots
+    if ws_robots is not None:
+        ws_robots.remove()
 
 
 def parse_arguments():
@@ -51,7 +49,7 @@ def parse_arguments():
 
 def sighup_handler(name):
     """SIGHUP HANDLER"""
-    #logger.debug(f'signal_handler {name}')
+    # logger.debug(f'signal_handler {name}')
     logger.info('Updating the Robotic Configuration')
     global is_sighup_received
     is_sighup_received = True
@@ -59,7 +57,7 @@ def sighup_handler(name):
 
 async def app(eventloop, config):
     """Main application for Robot Generator"""
-    global robots_in_ws
+    global ws_robots
     global is_sighup_received
 
     while True:
@@ -73,24 +71,12 @@ async def app(eventloop, config):
 
         logger.debug("Robot Generator Version: %s", generator_config['version'])
 
-        # robot instantiation
-        for robot in generator_config["robots"]:
-            # check for protocol key
-            if "protocol" not in robot:
-                logger.error("no 'protocol' key found.")
-                sys.exit(-1)
-
-            robo = RobotArm2(event_loop=eventloop, robot_info=robot)
-            await robo.connect()
-
-            # add new instance to robots in workspace list
-            robots_in_ws.append(robo)
+        ws_robots = WSRobots(eventloop=eventloop, config=generator_config)
+        await ws_robots.connect()
 
         # continuously monitor signal handle and update robot motion
         while not is_sighup_received:
-            for robo in robots_in_ws:
-                await robo.update()
-
+            await ws_robots.update()
         # If SIGHUP Occurs, Delete the instances
         _graceful_shutdown()
 
@@ -109,7 +95,7 @@ def read_config(yaml_config_file):
         raise FileNotFoundError
 
 
-def main():
+def app_main():
     """Initialization"""
     args = parse_arguments()
     if not os.path.isfile(args.config):
@@ -123,7 +109,3 @@ def main():
     except KeyboardInterrupt:
         logger.error('CTRL+C Pressed')
         _graceful_shutdown()
-
-
-if __name__ == "__main__":
-    main()
