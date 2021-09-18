@@ -64,7 +64,11 @@ class PubSubAMQP:
                 password=self.credential_info["password"],
                 host=self.broker_info["address"],
                 port=self.broker_info["port"],
-                loop=self.eventloop
+                loop=self.eventloop,
+                # Client properties as per Rabbit mq 3.8
+                client_properties={"client_properties": {
+                    "connection_name": "generator-robot"}
+                }
             )
             self.channel = await self.connection.channel()
             if mode == "subscriber":
