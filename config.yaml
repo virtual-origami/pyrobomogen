@@ -27,6 +27,8 @@ preset:
     credentials: &amq_credential
       username: "admin"
       password: "rabbit"
+  health_server_info: &health_server_info
+    port: "9012"
   redis: &redis_connect_info
     server:
       address: "redis"
@@ -78,6 +80,7 @@ robot_generator:
   in_mem_db: *redis_connect_info
   protocol: *pub_sub_protocol_1
   update_interval: *controller_1
+  health_server: *health_server_info
   robots: # List of Robots to be simulated with unique ID
     - id: "1"
       arm: *two_arm_robot_1

@@ -10,6 +10,8 @@ import os
 import signal
 import sys
 import yaml
+
+from pyrobomogen.health import HealthServer
 from pyrobomogen.robots import WSRobots
 
 logging.basicConfig(level=logging.DEBUG, format='%(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
@@ -63,7 +65,7 @@ async def app(eventloop, config):
     while True:
         # Read configuration
         try:
-            generator_config = read_config(config)
+            generator_config = read_config(yaml_config_file=config, key='robot_generator')
         except Exception as e:
             logger.error('Error while reading configuration:')
             logger.error(e)
@@ -71,12 +73,16 @@ async def app(eventloop, config):
 
         logger.debug("Robot Generator Version: %s", generator_config['version'])
 
+        # health server
+        health_server = HealthServer(config=generator_config["health_server"],event_loop=eventloop)
+
         ws_robots = WSRobots(eventloop=eventloop, config=generator_config)
         await ws_robots.connect()
 
         # continuously monitor signal handle and update robot motion
         while not is_sighup_received:
             await ws_robots.update()
+            await health_server.server_loop()
         # If SIGHUP Occurs, Delete the instances
         _graceful_shutdown()
 
@@ -84,12 +90,12 @@ async def app(eventloop, config):
         is_sighup_received = False
 
 
-def read_config(yaml_config_file):
+def read_config(yaml_config_file, key):
     """Parse the given Configuration File"""
     if os.path.exists(yaml_config_file):
         with open(yaml_config_file, 'r') as config_file:
             yaml_as_dict = yaml.load(config_file, Loader=yaml.FullLoader)
-        return yaml_as_dict['robot_generator']
+        return yaml_as_dict[key]
     else:
         logger.error('YAML Configuration File not Found.')
         raise FileNotFoundError
