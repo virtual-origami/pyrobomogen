@@ -75,6 +75,7 @@ async def app(eventloop, config):
 
         # health server
         health_server = HealthServer(config=generator_config["health_server"],event_loop=eventloop)
+        eventloop.create_task(health_server.server_loop())
 
         ws_robots = WSRobots(eventloop=eventloop, config=generator_config)
         await ws_robots.connect()
@@ -82,7 +83,6 @@ async def app(eventloop, config):
         # continuously monitor signal handle and update robot motion
         while not is_sighup_received:
             await ws_robots.update()
-            await health_server.server_loop()
         # If SIGHUP Occurs, Delete the instances
         _graceful_shutdown()
 

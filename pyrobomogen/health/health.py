@@ -26,6 +26,11 @@ class HealthServer:
         client.close()
 
     async def server_loop(self):
-        client, _ = await self.event_loop.sock_accept(self.server)
-        self.event_loop.create_task(self.handle_client(client))
+        try:
+            while True:
+                self.event_loop = asyncio.get_event_loop()
+                client, _ = await self.event_loop.sock_accept(self.server)
+                self.event_loop.create_task(self.handle_client(client))
+        except Exception as e:
+            return
 
