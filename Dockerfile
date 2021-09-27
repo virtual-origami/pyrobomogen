@@ -1,5 +1,8 @@
 FROM python:3.8.3-slim-buster AS base
 
+RUN apt-get update
+RUN apt-get install -y netcat
+
 # Dedicated Workdir for App
 WORKDIR /pyrobomogen
 
