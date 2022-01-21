@@ -22,19 +22,19 @@ preset:
       - { x: 5, y: 4 }
   amq: # AMQP Broker Information
     broker: &amq_connect_info
-      address: ${RABBITMQ}
+      address: 'rabbitmq'
       port: 5672
     credentials: &amq_credential
-      username: ${RABBITMQ_USERNAME}
-      password: ${RABBITMQ_PASSWORD}
+      username: 'admin'
+      password: 'rabbit'
   health_server_info: &health_server_info
     port: "9012"
   redis: &redis_connect_info
     server:
-      address: ${REDIS}
+      address: 'redis'
       port: 6379
     credentials:
-      password: ${REDIS_PASSWORD}
+      password: 'rabbit'
   pub_sub:
     - pub_sub_1: &pub_generator_robot
         type: "amq"
