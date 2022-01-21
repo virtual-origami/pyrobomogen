@@ -88,7 +88,7 @@ async def app(eventloop, config):
 
         logger.debug("Robot Generator Version: %s", generator_config['version'])
 
-        # health server
+        # health server (removed)
         # health_server = HealthServer(config=generator_config["health_server"],event_loop=eventloop)
         # eventloop.create_task(health_server.server_loop())
 
