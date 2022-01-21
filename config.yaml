@@ -22,19 +22,19 @@ preset:
       - { x: 5, y: 4 }
   amq: # AMQP Broker Information
     broker: &amq_connect_info
-      address: "rabbitmq"
+      address: ${RABBITMQ}
       port: 5672
     credentials: &amq_credential
-      username: "admin"
-      password: "rabbit"
+      username: ${RABBITMQ_USERNAME}
+      password: ${RABBITMQ_PASSWORD}
   health_server_info: &health_server_info
     port: "9012"
   redis: &redis_connect_info
     server:
-      address: "redis"
+      address: ${REDIS}
       port: 6379
     credentials:
-      password: "rabbit"
+      password: ${REDIS_PASSWORD}
   pub_sub:
     - pub_sub_1: &pub_generator_robot
         type: "amq"
@@ -76,7 +76,7 @@ preset:
         subscribers:
           - *sub_control_robot
 robot_generator:
-  version: "0.1" # Configuration Version
+  version: "0.3" # Configuration Version
   in_mem_db: *redis_connect_info
   protocol: *pub_sub_protocol_1
   update_interval: *controller_1
