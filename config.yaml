@@ -40,21 +40,21 @@ preset:
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
-        exchange: "generator_robot"
+        exchange: ""
         queue: "generator_robot_rk"
         handler:
     - pub_sub_2: &sub_control_robot
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
-        exchange: "control_robot"
+        exchange: ""
         queue: "control_robot_rk"
         handler: "robot_control_msg_handler"
     - pub_sub_3: &pub_visual
         type: "amq"
         broker: *amq_connect_info
         credential: *amq_credential
-        exchange: "visual"
+        exchange: ""
         queue: "visual_generator_robot_rk"
         handler:
   robot_arm_design:
