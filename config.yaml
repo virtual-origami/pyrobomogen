@@ -22,7 +22,7 @@ preset:
       - { x: 5, y: 4 }
   amq: # AMQP Broker Information
     broker: &amq_connect_info
-      address: 'rabbitmq'
+      address: '192.168.83.16'
       port: 5672
     credentials: &amq_credential
       username: 'admin'
@@ -31,7 +31,7 @@ preset:
     port: "9012"
   redis: &redis_connect_info
     server:
-      address: 'redis'
+      address: '192.168.83.16'
       port: 6379
     credentials:
       password: 'rabbit'
